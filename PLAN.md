@@ -120,25 +120,39 @@
 │  └─────┬─────┘                     └───────┬───────┘  │
 └────────┼───────────────────────────────────┼──────────┘
          │                                   │
-┌────────┴──────────┐              ┌─────────┴──────────┐
-│    Supabase       │              │    Rust Backend     │
-│  ┌──────────────┐ │              │  ┌───────────────┐  │
-│  │  PostgreSQL   │ │              │  │  wallpaper.rs │  │
-│  │  (Mumbai)     │ │              │  │  display.rs   │  │
-│  ├──────────────┤ │              │  │  cache.rs     │  │
-│  │  Storage     │ │              │  │  rotation.rs  │  │
-│  │  (Images)    │ │              │  │  tray.rs      │  │
-│  ├──────────────┤ │              │  └───────────────┘  │
-│  │  Edge Funcs  │ │              │  ┌───────────────┐  │
-│  │  (Thumbnails)│ │              │  │  SQLite Cache │  │
-│  └──────────────┘ │              │  └───────────────┘  │
-└───────────────────┘              └────────────────────┘
+┌────────┴──────────┐   ┌────────────┐  ┌────┴──────────┐
+│    Supabase       │   │ Unsplash/  │  │ Rust Backend  │
+│  (Free Plan)      │   │ Pexels CDN │  │               │
+│  ┌──────────────┐ │   │            │  │ ┌───────────┐ │
+│  │  PostgreSQL   │ │   │ Image      │  │ │wallpaper  │ │
+│  │  (Mumbai)     │ │   │ delivery   │  │ │display    │ │
+│  ├──────────────┤ │   │ + resize   │  │ │cache      │ │
+│  │  Auth        │ │   │ params     │  │ │rotation   │ │
+│  │  (Anon/OAuth)│ │   │            │  │ │tray       │ │
+│  ├──────────────┤ │   └────────────┘  │ └───────────┘ │
+│  │  Edge Funcs  │ │                   │ ┌───────────┐ │
+│  │  (Analytics) │ │                   │ │SQLite     │ │
+│  └──────────────┘ │                   │ │(local)    │ │
+└───────────────────┘                   │ └───────────┘ │
+                                        └───────────────┘
 ```
 
+> **Supabase Free Plan Strategy:** Images are NOT stored in Supabase Storage. Instead, wallpaper URLs point directly to Unsplash/Pexels CDNs with built-in resize parameters (`?w=400&h=300&fit=crop`). This avoids the free plan's 1GB storage limit and 2GB bandwidth cap. Supabase is used only for: PostgreSQL database (500MB), Auth, and Edge Functions (500K invocations/month). All images are served from external CDNs at zero cost.
+>
+> **Free Plan Limits:**
+> | Resource | Free Tier Limit | Our Usage |
+> |----------|----------------|-----------|
+> | Database | 500MB | ~50MB for 1000 wallpapers metadata + user data |
+> | File Storage | 1GB, 2GB bandwidth | NOT USED — external CDN |
+> | Auth | 50K MAU | Anonymous + email + OAuth |
+> | Edge Functions | 500K invocations/month | Analytics sync + popular tracking |
+> | Realtime | 200 concurrent | Optional: live favorites count |
+> | Database Connections | Direct: pooled via Supavisor | Connection string from dashboard |
+
 **Data Flow:**
-1. Frontend fetches wallpaper metadata from Supabase (paginated, cached locally in SQLite)
-2. Images loaded from Supabase Storage CDN (285+ cities) with on-the-fly transforms
-3. Wallpaper setting commands go through Tauri IPC → Rust → platform-specific API
+1. Frontend fetches wallpaper metadata from Supabase DB (paginated, cached locally in SQLite)
+2. Images loaded directly from Unsplash/Pexels CDN with resize params for thumbnails
+3. Full-resolution images downloaded via Tauri IPC → Rust → local cache before setting as wallpaper
 4. Favorites/collections sync bidirectionally: local SQLite ↔ Supabase
 5. Offline mutations queued, pushed on reconnect with conflict resolution
 
@@ -174,10 +188,10 @@ CREATE TABLE wallpapers (
   title text NOT NULL,
   category_id bigint REFERENCES categories(id),
   tags text[] DEFAULT '{}',
-  image_url text NOT NULL,              -- Full resolution Supabase Storage path
-  thumbnail_url_small text,             -- 400px WebP
-  thumbnail_url_medium text,            -- 800px WebP
-  thumbnail_url_large text,             -- 1600px WebP
+  image_url text NOT NULL,              -- Full resolution Unsplash/Pexels CDN URL
+  thumbnail_url_small text,             -- 400px via CDN resize params (?w=400&fit=crop)
+  thumbnail_url_medium text,            -- 800px via CDN resize params (?w=800&fit=crop)
+  thumbnail_url_large text,             -- 1600px via CDN resize params (?w=1600&fit=crop)
   resolution text NOT NULL,             -- '4K', '2K', '1080p', 'ultrawide'
   width int NOT NULL,
   height int NOT NULL,
@@ -353,14 +367,15 @@ CREATE POLICY "Users manage own usage stats" ON usage_stats
   FOR ALL USING (auth.uid() = user_id);
 ```
 
-### Edge Functions
+### Edge Functions (Free Plan — 500K invocations/month)
 
 | Function | Trigger | Purpose |
 |----------|---------|---------|
-| `generate-thumbnails` | Storage webhook (on upload) | Create small/medium/large WebP variants |
-| `track-popular` | Scheduled (hourly) | Aggregate downloads, update trending lists |
+| `track-popular` | HTTP POST (called by client hourly) | Aggregate downloads, update trending lists |
 | `sync-analytics` | HTTP POST | Batch sync offline usage data from clients |
-| `curate-featured` | Scheduled (daily) | Update featured wallpapers based on engagement |
+| `curate-featured` | HTTP POST (called by client daily) | Update featured wallpapers based on engagement |
+
+> **Note:** No `generate-thumbnails` needed — Unsplash/Pexels CDN handles image resizing via URL params (`?w=400&h=300&fit=crop&q=80`). Free plan cron triggers are limited; Edge Functions are called by the client on a schedule instead.
 
 ---
 
@@ -423,24 +438,26 @@ CREATE POLICY "Users manage own usage stats" ON usage_stats
 **Goal:** Full Supabase setup — schema, RLS, storage, client library, type definitions.
 
 **Tasks:**
-1. Link Supabase project (`supabase link --project-ref rfvsnpeafnehgoceavmz`)
+1. Link Supabase project (`supabase link --project-ref <mumbai-project-ref>`)
 2. Create all migration files (categories, wallpapers, favorites, collections, collection_items, downloads_log, usage_stats)
 3. Apply RLS policies for all tables
 4. Create `update_updated_at()` trigger function
-5. Create Supabase Storage bucket `wallpapers` (public, 25MB limit)
-6. Set up storage RLS policies
-7. Create edge function `generate-thumbnails` (Deno, on storage upload)
-8. Create edge function `sync-analytics` (HTTP endpoint for offline data)
-9. Create edge function `track-popular` (scheduled aggregation)
-10. Create edge function `curate-featured` (daily featured selection)
-11. Build `src/lib/supabase.ts` — client initialization with env vars
-12. Build `src/types/database.ts` — full TypeScript types matching schema
-13. Build `src/lib/supabase-queries.ts` — typed query functions (getWallpapers, getCategories, etc.)
-14. Seed database with 100 real wallpapers from Unsplash/Pexels (production URLs, real metadata)
-15. Seed 8 categories with icons and colors
-16. Verify all queries work via Supabase dashboard SQL editor
+5. ~~Create Supabase Storage bucket~~ — NOT NEEDED: images served from Unsplash/Pexels CDN directly
+6. Create edge function `sync-analytics` (HTTP POST — batch sync offline usage data)
+7. Create edge function `track-popular` (HTTP POST — aggregate downloads, update trending)
+8. Create edge function `curate-featured` (HTTP POST — update featured wallpapers)
+9. Build `src/lib/supabase.ts` — client initialization with env vars
+10. Build `src/types/database.ts` — full TypeScript types matching schema
+11. Build `src/lib/supabase-queries.ts` — typed query functions (getWallpapers, getCategories, etc.)
+12. Seed database with 100 real wallpapers from Unsplash/Pexels CDN (production URLs with resize params, real metadata)
+    - `image_url`: full-resolution Unsplash/Pexels URL
+    - `thumbnail_url_small`: same URL with `?w=400&fit=crop&q=80`
+    - `thumbnail_url_medium`: same URL with `?w=800&fit=crop&q=80`
+    - `thumbnail_url_large`: same URL with `?w=1600&fit=crop&q=80`
+13. Seed 8 categories with icons and colors
+14. Verify all queries work via Supabase dashboard SQL editor
 
-**Deliverable:** Fully configured Supabase with schema, RLS, storage, edge functions, and seeded data.
+**Deliverable:** Fully configured Supabase (free plan) with schema, RLS, edge functions, and seeded data. No Storage bucket needed — images served from external CDN.
 
 **Files Created:**
 ```
@@ -458,7 +475,6 @@ CREATE POLICY "Users manage own usage stats" ON usage_stats
 │   │   ├── 009_create_triggers.sql
 │   │   └── 010_create_indexes.sql
 │   ├── functions/
-│   │   ├── generate-thumbnails/index.ts
 │   │   ├── sync-analytics/index.ts
 │   │   ├── track-popular/index.ts
 │   │   └── curate-featured/index.ts
@@ -625,7 +641,7 @@ CREATE POLICY "Users manage own usage stats" ON usage_stats
    - Keyboard navigation (Esc to close, arrow keys for next/prev)
    - Parallax background blur effect
 5. **Infinite Scroll** — load more wallpapers on scroll with intersection observer
-6. **Image Optimization** — use Supabase Storage URL params for on-the-fly resizing (`?width=400&resize=cover&quality=80`)
+6. **Image Optimization** — Unsplash CDN resize params (`?w=400&fit=crop&q=80`), Pexels CDN params (`?w=400&h=300&fit=crop`). No Supabase Storage needed.
 
 **Deliverable:** Beautiful masonry grid with spring animations, hover effects, preview modal, infinite scroll.
 
@@ -812,7 +828,7 @@ CREATE POLICY "Users manage own usage stats" ON usage_stats
    - Next rotation countdown timer with animated digits
    - Pause/Resume rotation button
 3. **Download Settings**:
-   - Quality selector: Original, High, Medium, Low (maps to Supabase Storage transform params)
+   - Quality selector: Original (full CDN URL), High (`?q=90&w=3840`), Medium (`?q=80&w=2560`), Low (`?q=70&w=1920`) — via Unsplash/Pexels CDN params
    - Default download location picker
    - Storage management:
      - Current cache size (animated counter)
@@ -1188,7 +1204,6 @@ Wallpaper-House-2026/
 │   │   ├── 009_create_triggers.sql
 │   │   └── 010_create_indexes.sql
 │   ├── functions/
-│   │   ├── generate-thumbnails/index.ts
 │   │   ├── sync-analytics/index.ts
 │   │   ├── track-popular/index.ts
 │   │   └── curate-featured/index.ts
