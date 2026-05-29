@@ -95,7 +95,7 @@
 | Distribution | GitHub Releases (DMG, EXE/MSI, AppImage/DEB/RPM) |
 | Auto-Update | Tauri updater + GitHub Releases `latest.json` |
 
-> **Note:** If Supabase project was created in Tokyo, create a new project in Mumbai (ap-south-1) via dashboard before proceeding. Use `supabase link --project-ref <new-ref>` to connect.
+> **IMPORTANT:** The Supabase project `rfvsnpeafnehgoceavmz` was originally created in Tokyo. Supabase does NOT support region migration. You MUST create a NEW project in ap-south-1 (Mumbai) via the Supabase dashboard, then update the project ref throughout this plan. Use `supabase link --project-ref <new-ref>` to connect the CLI. All SQL migrations and seed data will be applied to the new Mumbai project.
 
 ---
 
