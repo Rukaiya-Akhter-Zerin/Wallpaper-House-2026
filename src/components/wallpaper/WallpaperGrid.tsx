@@ -100,6 +100,7 @@ export function WallpaperGrid({
               onPreview={onPreview}
               onFavorite={onFavorite}
               onDownload={onDownload}
+              onSetWallpaper={onSetWallpaper}
               isFavorited={favorites?.has(wallpaper.id) ?? false}
             />
           </motion.div>
