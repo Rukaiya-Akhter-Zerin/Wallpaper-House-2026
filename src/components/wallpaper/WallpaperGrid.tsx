@@ -37,6 +37,7 @@ export function WallpaperGrid({
   onPreview,
   onFavorite,
   onDownload,
+  onSetWallpaper,
   favorites,
 }: WallpaperGridProps) {
   const observer = useRef<IntersectionObserver | null>(null);
