@@ -19,7 +19,7 @@
     "global-shortcut:allow-unregister",
     "global-shortcut:allow-is-registered",
     "notification:default",
-    "notification:allow-send-notification",
+    "notification:allow-notify",
     "notification:allow-request-permission",
     "notification:allow-is-permission-granted",
     "window-state:default",

@@ -298,6 +298,16 @@ fn get_displays_linux() -> Result<Vec<Display>, Error> {
 fn set_wallpaper_for_display_linux(path: &str, display_id: u32) -> Result<(), Error> {
     // For GNOME, we can't set per-monitor wallpapers easily.
     // Use gsettings to set for all monitors as fallback.
-    let _ = display_id; // TODO: implement per-monitor on GNOME via dconf
-    crate::commands::wallpaper::set_wallpaper(path)
+    let _ = display_id;
+    let file_uri = format!("file://{}", path);
+    let output = std::process::Command::new("gsettings")
+        .args(["set", "org.gnome.desktop.background", "picture-uri", &file_uri])
+        .output()
+        .map_err(|e| Error::CommandFailed(format!("gsettings failed: {}", e)))?;
+    if !output.status.success() {
+        let _ = std::process::Command::new("feh")
+            .args(["--bg-fill", path])
+            .output();
+    }
+    Ok(())
 }

@@ -1,13 +1,11 @@
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Manager,
+    AppHandle, Emitter, Manager,
 };
 
-use crate::error::Error;
-
 /// Set up the system tray icon and menu.
-pub fn setup_tray(app: &AppHandle) -> Result<(), Error> {
+pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     let show_item = MenuItem::with_id(app, "show", "Show Wallpaper House", true, None::<&str>)?;
     let next_item = MenuItem::with_id(app, "next", "Next Wallpaper", true, None::<&str>)?;
     let pause_item = MenuItem::with_id(app, "pause", "Pause Rotation", true, None::<&str>)?;

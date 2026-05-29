@@ -52,7 +52,7 @@
         "depends": ["libwebkit2gtk-4.1-0", "libgtk-3-0"]
       },
       "rpm": {
-        "requires": ["webkit2gtk4.1", "gtk3"]
+        "depends": ["webkit2gtk4.1", "gtk3"]
       }
     },
     "macOS": {
