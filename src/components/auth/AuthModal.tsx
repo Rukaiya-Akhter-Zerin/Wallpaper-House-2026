@@ -71,7 +71,7 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
     setGoogleError("");
     setLoading(true);
     try {
-      const result = await signInWithOAuth("google");
+      const result = (await signInWithOAuth("google")) as { error?: string };
       if (result?.error) {
         const msg = result.error;
         if (msg.includes("not enabled") || msg.includes("Unsupported provider")) {
