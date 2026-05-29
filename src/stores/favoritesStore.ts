@@ -109,7 +109,7 @@ export const useFavoritesStore = create<FavoritesState>((set, get) => ({
           toInsert.map((wallpaper_id) => ({
             user_id: session.session!.user.id,
             wallpaper_id,
-          }))
+          })) as any
         );
       }
     } catch {}
