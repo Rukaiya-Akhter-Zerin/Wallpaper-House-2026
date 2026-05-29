@@ -10,6 +10,7 @@ import { Collections } from "@/pages/Collections";
 import { AnalyticsPage } from "@/pages/AnalyticsPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 import { pageTransition } from "@/lib/motion";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -47,13 +48,15 @@ export default function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AppLayout
-        theme={themeHook.theme}
-        setTheme={themeHook.setTheme}
-        resolvedTheme={themeHook.resolvedTheme}
-      >
-        <CurrentPage />
-      </AppLayout>
+      <TooltipProvider delayDuration={300}>
+        <AppLayout
+          theme={themeHook.theme}
+          setTheme={themeHook.setTheme}
+          resolvedTheme={themeHook.resolvedTheme}
+        >
+          <CurrentPage />
+        </AppLayout>
+      </TooltipProvider>
     </QueryClientProvider>
   );
 }

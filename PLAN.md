@@ -1224,6 +1224,69 @@ Wallpaper-House-2026/
 
 ---
 
+## Ruflo Integration
+
+This project uses **Ruflo MCP tools** for development coordination:
+
+| Tool | Usage |
+|------|-------|
+| `memory_store` / `memory_search` | Persist project decisions, progress across sessions |
+| `task_create` / `task_update` / `task_list` | Track 10-chunk development progress |
+| `hooks_session-start` / `hooks_session-end` | Session state persistence |
+| `hooks_pre-task` / `hooks_post-task` | Task routing and quality scoring |
+| `guidance_recommend` | Agent routing for optimal model selection |
+| `swarm_init` | Multi-agent parallel development coordination |
+
+**Ruflo workflow:**
+1. Session starts → restore state from AgentDB
+2. Each chunk → `hooks_pre-task` for routing → spawn agents → `hooks_post-task` for scoring
+3. Progress stored in `wallpaper-house-2026` namespace with vector embeddings
+4. Session ends → persist to ReflexionMemory for cross-session learning
+
+---
+
+## Ruflo Integration
+
+This project uses **Ruflo MCP tools** for development coordination:
+
+| Tool | Usage |
+|------|-------|
+| `memory_store` / `memory_search` | Persist project decisions, progress across sessions |
+| `task_create` / `task_update` / `task_list` | Track 10-chunk development progress |
+| `hooks_session-start` / `hooks_session-end` | Session state persistence |
+| `hooks_pre-task` / `hooks_post-task` | Task routing and quality scoring |
+| `guidance_recommend` | Agent routing for optimal model selection |
+| `swarm_init` | Multi-agent parallel development coordination |
+
+**Ruflo workflow:**
+1. Session starts → restore state from AgentDB
+2. Each chunk → `hooks_pre-task` for routing → spawn agents → `hooks_post-task` for scoring
+3. Progress stored in `wallpaper-house-2026` namespace with vector embeddings
+4. Session ends → persist to ReflexionMemory for cross-session learning
+
+---
+
+## Ruflo Integration
+
+This project uses **Ruflo MCP tools** for development coordination:
+
+| Tool | Usage |
+|------|-------|
+| `memory_store` / `memory_search` | Persist project decisions, progress across sessions |
+| `task_create` / `task_update` / `task_list` | Track 10-chunk development progress |
+| `hooks_session-start` / `hooks_session-end` | Session state persistence |
+| `hooks_pre-task` / `hooks_post-task` | Task routing and quality scoring |
+| `guidance_recommend` | Agent routing for optimal model selection |
+| `swarm_init` | Multi-agent parallel development coordination |
+
+**Ruflo workflow:**
+1. Session starts → restore state from AgentDB
+2. Each chunk → `hooks_pre-task` for routing → spawn agents → `hooks_post-task` for scoring
+3. Progress stored in `wallpaper-house-2026` namespace with vector embeddings
+4. Session ends → persist to ReflexionMemory for cross-session learning
+
+---
+
 ## GitHub Secrets Required
 
 | Secret | Purpose | Required For |

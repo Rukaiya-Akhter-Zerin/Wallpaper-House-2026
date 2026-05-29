@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { motion } from "motion/react";
 import {
   LayoutDashboard,
@@ -14,6 +15,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore, type ViewName } from "@/stores/appStore";
+import { UserMenu } from "@/components/auth/UserMenu";
+import { AuthModal } from "@/components/auth/AuthModal";
 import type { useTheme } from "@/hooks/useTheme";
 
 interface NavItem {
@@ -39,6 +42,7 @@ interface SidebarProps {
 
 export function Sidebar({ theme, setTheme, resolvedTheme }: SidebarProps) {
   const { sidebarCollapsed, currentView, setCurrentView, toggleSidebar } = useAppStore();
+  const [authOpen, setAuthOpen] = useState(false);
 
   const cycleTheme = () => {
     const order: Array<"light" | "dark" | "system"> = ["light", "dark", "system"];
@@ -49,6 +53,7 @@ export function Sidebar({ theme, setTheme, resolvedTheme }: SidebarProps) {
   const ThemeIcon = theme === "system" ? Monitor : resolvedTheme === "dark" ? Moon : Sun;
 
   return (
+    <>
     <motion.aside
       initial={false}
       animate={{ width: sidebarCollapsed ? 64 : 220 }}
@@ -93,6 +98,7 @@ export function Sidebar({ theme, setTheme, resolvedTheme }: SidebarProps) {
       </nav>
 
       <div className="space-y-1 border-t border-border px-2 py-3">
+        <UserMenu collapsed={sidebarCollapsed} onSignInClick={() => setAuthOpen(true)} />
         <button
           onClick={cycleTheme}
           className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
@@ -115,5 +121,7 @@ export function Sidebar({ theme, setTheme, resolvedTheme }: SidebarProps) {
         </button>
       </div>
     </motion.aside>
+      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
+    </>
   );
 }
