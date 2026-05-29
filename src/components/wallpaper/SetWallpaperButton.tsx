@@ -11,16 +11,10 @@ export function SetWallpaperButton({ wallpaper, variant = "default", size = "def
   const handleSet = async () => {
     try {
       setStatus("downloading");
-      const response = await fetch(wallpaper.image_url);
-      if (!response.ok) throw new Error("Download failed");
-      const blob = await response.blob();
-      const arrayBuffer = await blob.arrayBuffer();
-      const data = Array.from(new Uint8Array(arrayBuffer));
+      // Download + cache + set all in Rust (avoids slow IPC byte transfer for 4K images)
+      const cachePath = await invoke<string>("download_and_cache", { url: wallpaper.image_url });
       setStatus("setting");
-      await invoke("save_to_cache", { url: wallpaper.image_url, data });
-      const cachePath = await invoke<string>("read_from_cache", { url: wallpaper.image_url });
-      if (cachePath) { await invoke("set_wallpaper", { path: cachePath }); }
-      else { throw new Error("Cache path not found"); }
+      await invoke("set_wallpaper", { path: cachePath });
       setStatus("done");
       setTimeout(() => setStatus("idle"), 2000);
     } catch (err) {

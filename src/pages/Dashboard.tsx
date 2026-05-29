@@ -70,21 +70,21 @@ export function Dashboard() {
   const hasActiveFilters = categoryId || resolution || orientation || sort !== "created_at" || debouncedSearch;
 
   // Handle set wallpaper via Tauri
+  const [settingWallpaper, setSettingWallpaper] = useState(false);
+
   const handleSetWallpaper = useCallback(async (wallpaper: Wallpaper) => {
+    if (settingWallpaper) return;
+    setSettingWallpaper(true);
     try {
-      const response = await fetch(wallpaper.image_url);
-      if (!response.ok) throw new Error("Download failed");
-      const arrayBuffer = await response.arrayBuffer();
-      const data = Array.from(new Uint8Array(arrayBuffer));
-      await invoke("save_to_cache", { url: wallpaper.image_url, data });
-      const cachePath = await invoke<string>("read_from_cache", { url: wallpaper.image_url });
-      if (cachePath) {
-        await invoke("set_wallpaper", { path: cachePath });
-      }
+      // Download + cache + set all in Rust (avoids slow IPC byte transfer)
+      const cachePath = await invoke<string>("download_and_cache", { url: wallpaper.image_url });
+      await invoke("set_wallpaper", { path: cachePath });
     } catch (err) {
       console.error("Failed to set wallpaper:", err);
+    } finally {
+      setSettingWallpaper(false);
     }
-  }, []);
+  }, [settingWallpaper]);
 
   const handleFavorite = useCallback((wallpaper: Wallpaper) => {
     toggleFavorite(wallpaper.id);

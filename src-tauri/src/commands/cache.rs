@@ -96,3 +96,36 @@ pub async fn get_app_data_dir() -> Result<String, Error> {
     fs::create_dir_all(&app_dir)?;
     Ok(app_dir.to_string_lossy().into_owned())
 }
+
+/// Download an image from URL and save to cache, then return the local path.
+/// This avoids sending multi-MB byte arrays over Tauri IPC.
+#[command]
+pub async fn download_and_cache(url: String) -> Result<String, Error> {
+    let dir = cache_dir()?;
+    let filename = url_to_filename(&url);
+    let filepath = dir.join(&filename);
+
+    // Return cached path if already exists
+    if filepath.exists() && filepath.metadata()?.len() > 0 {
+        return Ok(filepath.to_string_lossy().into_owned());
+    }
+
+    let response = reqwest::get(&url)
+        .await
+        .map_err(|e| Error::CommandFailed(format!("Download failed: {}", e)))?;
+
+    if !response.status().is_success() {
+        return Err(Error::CommandFailed(format!(
+            "Download HTTP error: {}",
+            response.status()
+        )));
+    }
+
+    let bytes = response
+        .bytes()
+        .await
+        .map_err(|e| Error::CommandFailed(format!("Failed to read response: {}", e)))?;
+
+    fs::write(&filepath, &bytes)?;
+    Ok(filepath.to_string_lossy().into_owned())
+}
