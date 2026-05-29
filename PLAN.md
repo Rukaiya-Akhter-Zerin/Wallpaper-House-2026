@@ -1,881 +1,1305 @@
 # Wallpaper-House-2026 — Production Development Plan
 
-> Cross-platform desktop wallpaper application built with Tauri v2, React 19, TypeScript, Tailwind CSS v4, shadcn/ui, Framer Motion, and Supabase.
-
-**Target Platforms:** macOS (ARM64 + x64), Windows (x64), Linux (x64 + ARM64)
-**Repository:** https://github.com/Rukaiya-Akhter-Zerin/Wallpaper-House-2026
-**Supabase Project:** `rfvsnpeafnehgoceavmz` (Tokyo, Northeast Asia)
-**Total Development Time:** 20 hours across 10 phases
+> Cross-platform desktop wallpaper app | Tauri v2 + React + TypeScript + Supabase
+> Target: macOS, Windows, Linux | 20-hour development window | Production-ready, zero placeholders
 
 ---
 
-## Architecture Overview
+## Table of Contents
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Tauri v2 Shell                           │
-│  ┌───────────────────────────────────────────────────────────┐  │
-│  │                    React 19 Frontend                       │  │
-│  │  ┌─────────┐ ┌──────────┐ ┌───────────┐ ┌─────────────┐  │  │
-│  │  │ Dashboard│ │ Gallery  │ │Collections│ │  Analytics   │  │  │
-│  │  └─────────┘ └──────────┘ └───────────┘ └─────────────┘  │  │
-│  │  ┌─────────┐ ┌──────────┐ ┌───────────┐ ┌─────────────┐  │  │
-│  │  │ Search  │ │ Settings │ │   Auth    │ │   Preview    │  │  │
-│  │  └─────────┘ └──────────┘ └───────────┘ └─────────────┘  │  │
-│  │                                                           │  │
-│  │  shadcn/ui │ motion (Framer) │ Zustand │ TanStack Query  │  │
-│  └───────────────────────────────────────────────────────────┘  │
-│                           ↕ invoke() / events                   │
-│  ┌───────────────────────────────────────────────────────────┐  │
-│  │                    Rust Backend (src-tauri)                │  │
-│  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌─────────────┐  │  │
-│  │  │wallpaper │ │ display  │ │  cache   │ │  rotation   │  │  │
-│  │  │ commands │ │ commands │ │ commands │ │  scheduler   │  │  │
-│  │  └──────────┘ └──────────┘ └──────────┘ └─────────────┘  │  │
-│  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌─────────────┐  │  │
-│  │  │   tray   │ │autostart │ │updater   │ │ strongbox   │  │  │
-│  │  │  system  │ │  plugin  │ │  plugin  │ │  (secrets)  │  │  │
-│  │  └──────────┘ └──────────┘ └──────────┘ └─────────────┘  │  │
-│  └───────────────────────────────────────────────────────────┘  │
-│                           ↕ HTTPS                               │
-│  ┌───────────────────────────────────────────────────────────┐  │
-│  │                    Supabase Backend                        │  │
-│  │  PostgreSQL │ Auth │ Storage │ Edge Functions │ Realtime   │  │
-│  └───────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
-```
+- [Project Overview](#project-overview)
+- [Tech Stack & Versions](#tech-stack--versions)
+- [Infrastructure](#infrastructure)
+- [Architecture](#architecture)
+- [Database Schema](#database-schema)
+- [Development Chunks](#development-chunks)
+  - [Chunk 1: Project Foundation & Tauri Setup](#chunk-1-project-foundation--tauri-setup-2h)
+  - [Chunk 2: Database Schema & Supabase Integration](#chunk-2-database-schema--supabase-integration-2h)
+  - [Chunk 3: Rust Backend Commands](#chunk-3-rust-backend-commands-2h)
+  - [Chunk 4: UI Foundation & Theme System](#chunk-4-ui-foundation--theme-system-2h)
+  - [Chunk 5: Wallpaper Grid & Masonry Layout](#chunk-5-wallpaper-grid--masonry-layout-2h)
+  - [Chunk 6: Search, Filters & Categories](#chunk-6-search-filters--categories-2h)
+  - [Chunk 7: Favorites, Collections & Offline](#chunk-7-favorites-collections--offline-2h)
+  - [Chunk 8: Settings, Auto-Rotate & System Tray](#chunk-8-settings-auto-rotate--system-tray-2h)
+  - [Chunk 9: Analytics Dashboard & Auth](#chunk-9-analytics-dashboard--auth-2h)
+  - [Chunk 10: CI/CD, Polish & Release](#chunk-10-cicd-polish--release-2h)
+- [File Structure](#file-structure)
+- [GitHub Secrets Required](#github-secrets-required)
+- [Supabase Environment Variables](#supabase-environment-variables)
+- [Acceptance Criteria](#acceptance-criteria)
 
 ---
 
-## Tech Stack (Pinned Versions)
+## Project Overview
 
-| Layer | Technology | Version | Purpose |
-|-------|-----------|---------|---------|
-| Runtime | Tauri | 2.x | Desktop shell, native APIs |
-| Language | Rust | 1.95+ | Backend commands, platform integration |
-| Frontend | React | 19.x | UI framework |
-| Language | TypeScript | 5.7+ | Type safety |
-| Bundler | Vite | 6.x | Dev server, build |
-| Styling | Tailwind CSS | 4.x | Utility-first CSS |
-| Components | shadcn/ui | latest | Accessible component primitives |
-| Animation | motion (Framer) | 12.x | Spring physics, gestures, layout |
-| State | Zustand | 5.x | Client state management |
-| Server State | TanStack Query | 5.x | Async data, caching, sync |
-| Database | Supabase | 2.x | Auth, DB, Storage, Edge Functions |
-| Grid | react-masonry-css | latest | Pinterest-style masonry layout |
-| Charts | Recharts | 2.x | Analytics visualizations |
-| Icons | Lucide React | latest | Icon system |
-| Fonts | Inter + Geist | latest | Typography |
+**Wallpaper-House-2026** is a production-grade cross-platform desktop application for discovering, managing, and setting wallpapers. It features a premium Pinterest/Behance-style masonry dashboard, real-time search and filtering, favorites and collections, auto-rotation with smart scheduling, analytics dashboard, and cross-device sync via Supabase.
+
+**Key Design Principles:**
+- Apple/Notion/Linear-level polish — every interaction feels premium
+- 60fps GPU-accelerated animations with spring physics
+- Offline-first architecture — full functionality without internet
+- Production data only — no demo/mock data, seeded from real sources
+- Accessibility maintained — reduced-motion support throughout
 
 ---
 
-## Tauri v2 Plugins Required
+## Tech Stack & Versions
+
+| Layer | Technology | Version |
+|-------|-----------|---------|
+| Desktop Runtime | Tauri | v2 (2.0.0+) |
+| Backend | Rust | 1.95.0 |
+| Frontend Framework | React | 19.x |
+| Language | TypeScript | 5.x |
+| Bundler | Vite | 6.x |
+| Styling | Tailwind CSS | v4 (`@tailwindcss/vite`) |
+| UI Components | shadcn/ui | latest |
+| Animation | Motion (Framer Motion) | latest (`motion/react`) |
+| State Management | Zustand | 5.x |
+| Masonry Grid | react-masonry-css | latest |
+| Backend Service | Supabase | v2 (`@supabase/supabase-js`) |
+| Local Database | SQLite (via tauri-plugin-sql) | — |
+| Package Manager | pnpm | 9.x |
+| Node.js | Node | 22.x |
+
+### Tauri v2 Plugins
 
 | Plugin | Purpose |
 |--------|---------|
-| `tauri-plugin-store` | Persistent key-value settings (auto-rotate interval, theme, etc.) |
+| `tauri-plugin-store` | Persistent key-value settings |
 | `tauri-plugin-stronghold` | Secure credential storage (OAuth tokens, API keys) |
-| `tauri-plugin-shell` | Platform wallpaper commands (gsettings, feh on Linux) |
+| `tauri-plugin-shell` | Platform wallpaper commands, sidecar execution |
 | `tauri-plugin-updater` | Auto-update from GitHub Releases |
-| `tauri-plugin-autostart` | Launch at system startup |
-| `tauri-plugin-global-shortcut` | Global hotkeys (rotate, toggle UI) |
+| `tauri-plugin-autostart` | Launch at OS startup |
+| `tauri-plugin-global-shortcut` | Global hotkeys for rotation control |
 | `tauri-plugin-notification` | Rotation/update notifications |
-| `tauri-plugin-window-state` | Persist window size/position across restarts |
-| `tauri-plugin-process` | Relaunch after update |
+| `tauri-plugin-window-state` | Persist window size/position |
 | `tauri-plugin-single-instance` | Prevent duplicate app instances |
-| `tauri-plugin-http` | Supabase API calls from Rust |
+| `tauri-plugin-http` | API calls to Supabase from Rust side |
 | `tauri-plugin-dialog` | File picker for collection imports |
-| `tauri-plugin-clipboard-manager` | Copy wallpaper URL to clipboard |
+| `tauri-plugin-clipboard-manage` | Copy wallpaper URL/share |
+| `tauri-plugin-sql` | SQLite local cache database |
+| `tauri-plugin-process` | Relaunch after update |
 | `tauri-plugin-log` | Structured logging |
 
 ---
 
-## Phase Breakdown (20 Hours Total)
+## Infrastructure
 
-### Phase 1 — Project Scaffolding & Core Setup (2.0h)
-**Goal:** Working Tauri v2 app with React frontend rendering in a native window.
+| Service | Details |
+|---------|---------|
+| GitHub Repo | `Rukaiya-Akhter-Zerin/Wallpaper-House-2026` |
+| Supabase Project | `rfvsnpeafnehgoceavmz` — Mumbai (ap-south-1) |
+| Supabase Org | `juhnchovgqzepjcwsczf` |
+| CI/CD | GitHub Actions (macOS, Windows, Linux matrix) |
+| Distribution | GitHub Releases (DMG, EXE/MSI, AppImage/DEB/RPM) |
+| Auto-Update | Tauri updater + GitHub Releases `latest.json` |
 
-**Tasks:**
-1. Initialize Tauri v2 project with React + TypeScript + Vite template
-2. Configure Tailwind CSS v4 with `@tailwindcss/vite` plugin
-3. Initialize shadcn/ui with New York style, zinc color palette
-4. Set up project directory structure (see below)
-5. Configure path aliases (`@/*` → `src/*`)
-6. Install and configure all Tauri plugins in `Cargo.toml` and `capabilities/default.json`
-7. Set up Supabase client (`@supabase/supabase-js`) with env vars
-8. Configure Zustand store with devtools
-9. Set up TanStack Query provider
-10. Create base app shell with sidebar navigation
-11. Initialize GitHub repo, push initial commit
-12. Link Supabase project (`supabase link --project-ref rfvsnpeafnehgoceavmz`)
-
-**Deliverable:** Empty app shell running in Tauri window with sidebar, dark mode toggle, Supabase connected.
-
-**Dependencies:** None
+> **Note:** If Supabase project was created in Tokyo, create a new project in Mumbai (ap-south-1) via dashboard before proceeding. Use `supabase link --project-ref <new-ref>` to connect.
 
 ---
 
-### Phase 2 — Design System & Motion Infrastructure (2.0h)
-**Goal:** Complete design token system, theme provider, animation primitives.
+## Architecture
 
-**Tasks:**
-1. Define color system: semantic tokens for light/dark modes
-   - Backgrounds: `bg-background`, `bg-card`, `bg-muted`, `bg-popover`
-   - Foregrounds: `text-foreground`, `text-muted-foreground`, `text-accent`
-   - Accents: primary, secondary, destructive, warning, info
-   - Glassmorphism: `backdrop-blur-xl bg-white/10 dark:bg-white/5 border-white/20`
-2. Typography system: Inter (body), Geist (display/headings)
-   - Scale: xs(12) → sm(14) → base(16) → lg(18) → xl(20) → 2xl(24) → 3xl(30) → 4xl(36)
-   - Tracking: tight(-0.025em) for headings, normal for body
-   - Weights: medium(UI), semibold(headings), bold(hero)
-3. Spacing and sizing tokens following 4px grid
-4. Build motion primitives module:
-   - `springConfig` presets: snappy, bouncy, gentle, stiff
-   - `fadeInUp`, `fadeInScale`, `slideInLeft/Right` variants
-   - `staggerContainer` with configurable delay
-   - `cardHover` with spring physics (scale 1.02, y: -4)
-   - `pageTransition` variants
-   - `counterAnimation` using `useMotionValue` + `animate()`
-5. Create `<MotionProvider>` wrapping `<LazyMotion features={domAnimation}>`
-6. Build `<ThemeProvider>` supporting dark/light/system modes
-7. Create `useReducedMotion()` integration with motion config
-8. Build reusable animation components:
-   - `<FadeIn>` — wrapper with configurable direction and delay
-   - `<StaggerChildren>` — container that staggers child animations
-   - `<AnimatedCounter>` — number counter with spring physics
-   - `<ParallaxSection>` — subtle parallax on scroll
-9. Set up Tailwind custom theme with CSS variables
-10. Create glassmorphism utility classes
+```
+┌─────────────────────────────────────────────────────┐
+│                    React Frontend                     │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌────────┐  │
+│  │ Dashboard │ │ Settings │ │Analytics │ │  Auth  │  │
+│  │  (Grid)   │ │  Panel   │ │  Charts  │ │  Flow  │  │
+│  └─────┬────┘ └─────┬────┘ └─────┬────┘ └───┬────┘  │
+│        │             │            │           │       │
+│  ┌─────┴─────────────┴────────────┴───────────┴────┐  │
+│  │              Zustand Store Layer                 │  │
+│  │  wallpapers | favorites | collections | settings │  │
+│  └─────┬───────────────────────────────────┬───────┘  │
+│        │                                   │          │
+│  ┌─────┴─────┐                     ┌───────┴───────┐  │
+│  │  Supabase  │                     │  Tauri IPC    │  │
+│  │  Client    │                     │  invoke()     │  │
+│  └─────┬─────┘                     └───────┬───────┘  │
+└────────┼───────────────────────────────────┼──────────┘
+         │                                   │
+┌────────┴──────────┐              ┌─────────┴──────────┐
+│    Supabase       │              │    Rust Backend     │
+│  ┌──────────────┐ │              │  ┌───────────────┐  │
+│  │  PostgreSQL   │ │              │  │  wallpaper.rs │  │
+│  │  (Mumbai)     │ │              │  │  display.rs   │  │
+│  ├──────────────┤ │              │  │  cache.rs     │  │
+│  │  Storage     │ │              │  │  rotation.rs  │  │
+│  │  (Images)    │ │              │  │  tray.rs      │  │
+│  ├──────────────┤ │              │  └───────────────┘  │
+│  │  Edge Funcs  │ │              │  ┌───────────────┐  │
+│  │  (Thumbnails)│ │              │  │  SQLite Cache │  │
+│  └──────────────┘ │              │  └───────────────┘  │
+└───────────────────┘              └────────────────────┘
+```
 
-**Deliverable:** Design system documented, theme toggle working, animation primitives tested.
-
-**Dependencies:** Phase 1
+**Data Flow:**
+1. Frontend fetches wallpaper metadata from Supabase (paginated, cached locally in SQLite)
+2. Images loaded from Supabase Storage CDN (285+ cities) with on-the-fly transforms
+3. Wallpaper setting commands go through Tauri IPC → Rust → platform-specific API
+4. Favorites/collections sync bidirectionally: local SQLite ↔ Supabase
+5. Offline mutations queued, pushed on reconnect with conflict resolution
 
 ---
 
-### Phase 3 — Rust Backend Commands (2.5h)
-**Goal:** All native platform commands implemented and tested.
+## Database Schema
+
+### Tables
+
+```sql
+-- Enable required extensions
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- ============================================
+-- CATEGORIES
+-- ============================================
+CREATE TABLE categories (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  name text NOT NULL UNIQUE,
+  slug text NOT NULL UNIQUE,
+  icon text,                    -- Lucide icon name
+  color text,                   -- Hex color for UI accent
+  description text,
+  wallpaper_count int DEFAULT 0,
+  created_at timestamptz DEFAULT now()
+);
+
+-- ============================================
+-- WALLPAPERS
+-- ============================================
+CREATE TABLE wallpapers (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  title text NOT NULL,
+  category_id bigint REFERENCES categories(id),
+  tags text[] DEFAULT '{}',
+  image_url text NOT NULL,              -- Full resolution Supabase Storage path
+  thumbnail_url_small text,             -- 400px WebP
+  thumbnail_url_medium text,            -- 800px WebP
+  thumbnail_url_large text,             -- 1600px WebP
+  resolution text NOT NULL,             -- '4K', '2K', '1080p', 'ultrawide'
+  width int NOT NULL,
+  height int NOT NULL,
+  orientation text NOT NULL,            -- 'portrait', 'landscape', 'square'
+  downloads_count bigint DEFAULT 0,
+  likes_count bigint DEFAULT 0,
+  author text,
+  source text,                          -- 'unsplash', 'pexels', 'original'
+  source_url text,                      -- Original source URL
+  license text,                         -- 'free', 'cc0', 'cc-by', 'premium'
+  colors jsonb DEFAULT '[]',            -- Array of hex colors
+  dominant_color text,                  -- Primary hex color
+  file_size_bytes bigint,
+  is_featured boolean DEFAULT false,
+  is_active boolean DEFAULT true,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+CREATE INDEX idx_wallpapers_category ON wallpapers(category_id);
+CREATE INDEX idx_wallpapers_resolution ON wallpapers(resolution);
+CREATE INDEX idx_wallpapers_orientation ON wallpapers(orientation);
+CREATE INDEX idx_wallpapers_featured ON wallpapers(is_featured) WHERE is_featured = true;
+CREATE INDEX idx_wallpapers_created ON wallpapers(created_at DESC);
+CREATE INDEX idx_wallpapers_downloads ON wallpapers(downloads_count DESC);
+CREATE INDEX idx_wallpapers_tags ON wallpapers USING GIN(tags);
+
+-- ============================================
+-- FAVORITES
+-- ============================================
+CREATE TABLE favorites (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  wallpaper_id bigint NOT NULL REFERENCES wallpapers(id) ON DELETE CASCADE,
+  created_at timestamptz DEFAULT now(),
+  UNIQUE(user_id, wallpaper_id)
+);
+
+CREATE INDEX idx_favorites_user ON favorites(user_id);
+
+-- ============================================
+-- COLLECTIONS
+-- ============================================
+CREATE TABLE collections (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  description text,
+  cover_url text,                       -- Auto-set from first item
+  is_public boolean DEFAULT false,
+  wallpaper_count int DEFAULT 0,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+CREATE INDEX idx_collections_user ON collections(user_id);
+
+-- ============================================
+-- COLLECTION ITEMS
+-- ============================================
+CREATE TABLE collection_items (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  collection_id bigint NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
+  wallpaper_id bigint NOT NULL REFERENCES wallpapers(id) ON DELETE CASCADE,
+  order_index int DEFAULT 0,
+  added_at timestamptz DEFAULT now(),
+  UNIQUE(collection_id, wallpaper_id)
+);
+
+CREATE INDEX idx_collection_items_collection ON collection_items(collection_id);
+
+-- ============================================
+-- DOWNLOADS LOG
+-- ============================================
+CREATE TABLE downloads_log (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  wallpaper_id bigint NOT NULL REFERENCES wallpapers(id) ON DELETE CASCADE,
+  user_id uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+  platform text NOT NULL,               -- 'macos', 'windows', 'linux'
+  resolution text,
+  downloaded_at timestamptz DEFAULT now()
+);
+
+CREATE INDEX idx_downloads_wallpaper ON downloads_log(wallpaper_id);
+CREATE INDEX idx_downloads_user ON downloads_log(user_id);
+
+-- ============================================
+-- USAGE STATS
+-- ============================================
+CREATE TABLE usage_stats (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  date date NOT NULL DEFAULT CURRENT_DATE,
+  wallpapers_viewed int DEFAULT 0,
+  wallpapers_set int DEFAULT 0,
+  wallpapers_downloaded int DEFAULT 0,
+  session_seconds int DEFAULT 0,
+  UNIQUE(user_id, date)
+);
+
+CREATE INDEX idx_usage_user_date ON usage_stats(user_id, date DESC);
+
+-- ============================================
+-- UPDATED_AT TRIGGER
+-- ============================================
+CREATE OR REPLACE FUNCTION update_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER wallpapers_updated_at
+  BEFORE UPDATE ON wallpapers
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER collections_updated_at
+  BEFORE UPDATE ON collections
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+```
+
+### RLS Policies
+
+```sql
+-- Enable RLS on all tables
+ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE wallpapers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE favorites ENABLE ROW LEVEL SECURITY;
+ALTER TABLE collections ENABLE ROW LEVEL SECURITY;
+ALTER TABLE collection_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE downloads_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE usage_stats ENABLE ROW LEVEL SECURITY;
+
+-- Categories: public read
+CREATE POLICY "Public read categories" ON categories
+  FOR SELECT USING (true);
+
+-- Wallpapers: public read, authenticated insert/update (admin only via service role)
+CREATE POLICY "Public read wallpapers" ON wallpapers
+  FOR SELECT USING (is_active = true);
+
+-- Favorites: users manage own
+CREATE POLICY "Users manage own favorites" ON favorites
+  FOR ALL USING (auth.uid() = user_id);
+
+-- Collections: owner full access, public read if is_public
+CREATE POLICY "Owners manage collections" ON collections
+  FOR ALL USING (auth.uid() = user_id);
+
+CREATE POLICY "Public read shared collections" ON collections
+  FOR SELECT USING (is_public = true);
+
+-- Collection items: follow collection ownership
+CREATE POLICY "Owners manage collection items" ON collection_items
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM collections
+      WHERE collections.id = collection_items.collection_id
+      AND collections.user_id = auth.uid()
+    )
+  );
+
+-- Downloads log: insert by authenticated, read own
+CREATE POLICY "Users log own downloads" ON downloads_log
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users read own downloads" ON downloads_log
+  FOR SELECT USING (auth.uid() = user_id);
+
+-- Usage stats: users manage own
+CREATE POLICY "Users manage own usage stats" ON usage_stats
+  FOR ALL USING (auth.uid() = user_id);
+```
+
+### Edge Functions
+
+| Function | Trigger | Purpose |
+|----------|---------|---------|
+| `generate-thumbnails` | Storage webhook (on upload) | Create small/medium/large WebP variants |
+| `track-popular` | Scheduled (hourly) | Aggregate downloads, update trending lists |
+| `sync-analytics` | HTTP POST | Batch sync offline usage data from clients |
+| `curate-featured` | Scheduled (daily) | Update featured wallpapers based on engagement |
+
+---
+
+## Development Chunks
+
+### Chunk 1: Project Foundation & Tauri Setup (2h)
+
+**Goal:** Scaffold complete project, configure all tools, verify dev server runs.
 
 **Tasks:**
-1. **Wallpaper commands** (`src-tauri/src/commands/wallpaper.rs`):
-   - `set_wallpaper(path: String)` — platform-specific:
-     - macOS: `NSWorkspace::sharedWorkspace().setDesktopImageURL()` via `cocoa` + `objc` crates (main thread)
-     - Windows: `SystemParametersInfoW(SPI_SETDESKWALLPAPER)` via `windows` crate
-     - Linux: `gsettings set org.gnome.desktop.background picture-uri` + fallback `feh --bg-fill`
-   - `get_current_wallpaper()` — returns current wallpaper path per platform
-2. **Display commands** (`src-tauri/src/commands/display.rs`):
-   - `get_displays()` — enumerate connected monitors with resolution, position, primary flag
-     - macOS: `NSScreen::screens()`
-     - Windows: `EnumDisplayDevices` + `EnumDisplaySettings`
-     - Linux: `xrandr --query` parsing
-   - `set_wallpaper_for_display(path, display_id)` — multi-monitor support
-3. **Cache commands** (`src-tauri/src/commands/cache.rs`):
-   - `save_to_cache(url: String, data: Vec<u8>)` — download and store locally
-   - `read_from_cache(url: String)` → `Option<PathBuf>` — check if cached
-   - `get_cache_size()` → `u64` — total cache bytes
-   - `clear_cache()` — remove all cached files
-   - `get_app_data_dir()` → `PathBuf` — app data directory
-4. **Rotation commands** (`src-tauri/src/commands/rotation.rs`):
-   - `schedule_rotation(config: RotationConfig)` — start auto-rotate with `tokio::spawn` + interval
-   - `cancel_rotation()` — stop rotation
-   - `RotationConfig`: interval_secs, mode (sequential/random/category/favorites), category filter
+1. Initialize Vite + React + TypeScript project with pnpm
+2. Install and configure Tailwind CSS v4 (`@tailwindcss/vite` plugin)
+3. Initialize shadcn/ui (`pnpm dlx shadcn@latest init`)
+4. Install Tauri v2 CLI (`pnpm add -D @tauri-apps/cli@latest`)
+5. Initialize Tauri (`pnpm tauri init`) with bundle identifier `com.wallpaper-house.app`
+6. Install all Tauri plugins (store, stronghold, shell, updater, autostart, global-shortcut, notification, window-state, single-instance, http, dialog, sql, process, log)
+7. Configure `tauri.conf.json` — window size, title, decorations, updater endpoint
+8. Configure `capabilities/default.json` with all plugin permissions
+9. Install frontend deps: `motion`, `zustand`, `react-masonry-css`, `@supabase/supabase-js`, `lucide-react`, `recharts`, `date-fns`
+10. Set up path aliases (`@/*`) in tsconfig.json and tsconfig.app.json
+11. Create `.env.example` with all required env vars
+12. Create `.gitignore` (Rust target, node_modules, .env, dist)
+13. Verify `pnpm tauri dev` launches successfully
+14. Initial git commit and push to GitHub
+
+**Deliverable:** Working Tauri dev window with React rendering, all plugins registered.
+
+**Files Created:**
+```
+├── package.json
+├── pnpm-lock.yaml
+├── tsconfig.json
+├── tsconfig.app.json
+├── vite.config.ts
+├── .env.example
+├── .gitignore
+├── components.json              # shadcn/ui config
+├── src/
+│   ├── main.tsx
+│   ├── App.tsx
+│   ├── index.css                # Tailwind v4 imports + @theme
+│   └── lib/
+│       └── utils.ts             # shadcn cn() utility
+├── src-tauri/
+│   ├── Cargo.toml               # All plugin dependencies
+│   ├── tauri.conf.json          # App config
+│   ├── capabilities/
+│   │   └── default.json         # Plugin permissions
+│   ├── src/
+│   │   ├── main.rs
+│   │   └── lib.rs               # Plugin registration
+│   └── icons/                   # App icons (all sizes)
+└── PLAN.md
+```
+
+---
+
+### Chunk 2: Database Schema & Supabase Integration (2h)
+
+**Goal:** Full Supabase setup — schema, RLS, storage, client library, type definitions.
+
+**Tasks:**
+1. Link Supabase project (`supabase link --project-ref rfvsnpeafnehgoceavmz`)
+2. Create all migration files (categories, wallpapers, favorites, collections, collection_items, downloads_log, usage_stats)
+3. Apply RLS policies for all tables
+4. Create `update_updated_at()` trigger function
+5. Create Supabase Storage bucket `wallpapers` (public, 25MB limit)
+6. Set up storage RLS policies
+7. Create edge function `generate-thumbnails` (Deno, on storage upload)
+8. Create edge function `sync-analytics` (HTTP endpoint for offline data)
+9. Create edge function `track-popular` (scheduled aggregation)
+10. Create edge function `curate-featured` (daily featured selection)
+11. Build `src/lib/supabase.ts` — client initialization with env vars
+12. Build `src/types/database.ts` — full TypeScript types matching schema
+13. Build `src/lib/supabase-queries.ts` — typed query functions (getWallpapers, getCategories, etc.)
+14. Seed database with 100 real wallpapers from Unsplash/Pexels (production URLs, real metadata)
+15. Seed 8 categories with icons and colors
+16. Verify all queries work via Supabase dashboard SQL editor
+
+**Deliverable:** Fully configured Supabase with schema, RLS, storage, edge functions, and seeded data.
+
+**Files Created:**
+```
+├── supabase/
+│   ├── config.toml
+│   ├── migrations/
+│   │   ├── 001_create_categories.sql
+│   │   ├── 002_create_wallpapers.sql
+│   │   ├── 003_create_favorites.sql
+│   │   ├── 004_create_collections.sql
+│   │   ├── 005_create_collection_items.sql
+│   │   ├── 006_create_downloads_log.sql
+│   │   ├── 007_create_usage_stats.sql
+│   │   ├── 008_create_rls_policies.sql
+│   │   ├── 009_create_triggers.sql
+│   │   └── 010_create_indexes.sql
+│   ├── functions/
+│   │   ├── generate-thumbnails/index.ts
+│   │   ├── sync-analytics/index.ts
+│   │   ├── track-popular/index.ts
+│   │   └── curate-featured/index.ts
+│   └── seed.sql
+├── src/
+│   ├── lib/
+│   │   ├── supabase.ts
+│   │   └── supabase-queries.ts
+│   └── types/
+│       └── database.ts
+```
+
+---
+
+### Chunk 3: Rust Backend Commands (2h)
+
+**Goal:** All Tauri commands implemented — wallpaper setting, display detection, cache, rotation.
+
+**Tasks:**
+1. **`wallpaper.rs`** — Platform-specific wallpaper setting:
+   - macOS: `cocoa` + `objc` crates → `NSWorkspace::sharedWorkspace().setDesktopImageURL()` (main thread)
+   - Windows: `windows` crate → `SystemParametersInfoW(SPI_SETDESKWALLPAPER, ...)`
+   - Linux: `std::process::Command` → `gsettings` (GNOME), `feh` (fallback), `nitrogen` (fallback)
+   - `get_current_wallpaper()` — platform detection of current wallpaper path
+2. **`display.rs`** — Multi-monitor support:
+   - macOS: `NSScreen::screens()` enumeration
+   - Windows: `EnumDisplayDevices` API
+   - Linux: `xrandr` parsing
+   - `get_displays()` → `Vec<Display>` with id, name, resolution, is_primary
+   - `set_wallpaper_for_display(path, display_id)` — per-monitor wallpaper
+3. **`cache.rs`** — Local storage management:
+   - `save_to_cache(url, data)` → app data directory
+   - `read_from_cache(url)` → cached file path or null
+   - `get_cache_size()` → total bytes used
+   - `clear_cache(max_age_days)` → remove old files
+   - `get_downloads_dir()` → OS-specific downloads path
+4. **`rotation.rs`** — Auto-rotate scheduler:
+   - `schedule_rotation(config)` — start tokio interval with rotation settings
+   - `cancel_rotation()` — stop active scheduler
+   - `get_rotation_status()` → current state, next rotation time
+   - Support: interval-based, time-of-day (morning/afternoon/evening/night), category-based, favorites-only
    - State managed via `Arc<Mutex<Option<RotationHandle>>>`
-5. **Tray commands** (`src-tauri/src/commands/tray.rs`):
-   - System tray setup with `TrayIconBuilder`
-   - Menu: Show/Hide, Next Wallpaper, Pause Rotation, Settings, Quit
+5. **`tray.rs`** — System tray:
+   - `setup_tray()` — TrayIconBuilder with menu (Show, Pause Rotation, Next Wallpaper, Settings, Quit)
    - Left-click: show/focus window
-   - Close button: minimize to tray instead of quit
-6. **Error types** (`src-tauri/src/error.rs`):
-   - Custom `Error` enum with `thiserror` derives
-   - `serde::Serialize` impl for JS consumption
-7. Register all commands in `lib.rs` with `tauri::generate_handler!`
-8. Configure capabilities JSON for all plugin permissions
-9. Set up `tauri.conf.json`: app metadata, bundle config, updater endpoint, window defaults
+   - Right-click: context menu
+   - Minimize to tray on window close (configurable)
+6. **`error.rs`** — Custom error type with serde serialization
+7. Register all commands in `lib.rs` invoke handler
+8. Test each command via frontend `invoke()` calls
 
-**Deliverable:** All Rust commands callable from frontend, wallpaper setting works on current platform.
+**Deliverable:** All Rust commands working — can set wallpaper, detect displays, manage cache, schedule rotation, handle tray.
 
-**Dependencies:** Phase 1
+**Files Created:**
+```
+├── src-tauri/
+│   ├── Cargo.toml               # Updated with platform deps
+│   └── src/
+│       ├── lib.rs               # Updated with all command registrations
+│       ├── commands/
+│       │   ├── mod.rs
+│       │   ├── wallpaper.rs     # set_wallpaper, get_current_wallpaper
+│       │   ├── display.rs       # get_displays, set_wallpaper_for_display
+│       │   ├── cache.rs         # save_to_cache, read_from_cache, get_cache_size, clear_cache
+│       │   ├── rotation.rs      # schedule_rotation, cancel_rotation, get_rotation_status
+│       │   └── tray.rs          # setup_tray, minimize_to_tray, show_window
+│       └── error.rs             # AppError enum with thiserror
+```
 
 ---
 
-### Phase 4 — Supabase Schema & Data Layer (1.5h)
-**Goal:** Complete database schema, RLS policies, Edge Functions, seed data.
+### Chunk 4: UI Foundation & Theme System (2h)
+
+**Goal:** App shell, sidebar, theme system, glassmorphism, typography — the visual foundation.
 
 **Tasks:**
-1. **Database migrations** (`supabase/migrations/`):
-   ```sql
-   -- Core tables
-   CREATE TABLE wallpapers (
-     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-     title TEXT NOT NULL,
-     category_id UUID REFERENCES categories(id),
-     tags TEXT[] DEFAULT '{}',
-     image_url TEXT NOT NULL,
-     thumb_small TEXT NOT NULL,
-     thumb_medium TEXT NOT NULL,
-     thumb_large TEXT NOT NULL,
-     resolution TEXT NOT NULL, -- '4k', '2k', '1080p', 'ultrawide'
-     width INT NOT NULL,
-     height INT NOT NULL,
-     downloads_count INT DEFAULT 0,
-     likes_count INT DEFAULT 0,
-     author TEXT,
-     source TEXT,
-     license TEXT,
-     colors TEXT[] DEFAULT '{}',
-     dominant_color TEXT,
-     orientation TEXT NOT NULL, -- 'portrait', 'landscape', 'square'
-     file_size_bytes BIGINT DEFAULT 0,
-     created_at TIMESTAMPTZ DEFAULT now(),
-     updated_at TIMESTAMPTZ DEFAULT now()
-   );
-
-   CREATE TABLE categories (
-     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-     name TEXT NOT NULL UNIQUE,
-     slug TEXT NOT NULL UNIQUE,
-     icon TEXT,
-     color TEXT,
-     description TEXT,
-     wallpaper_count INT DEFAULT 0,
-     sort_order INT DEFAULT 0,
-     created_at TIMESTAMPTZ DEFAULT now()
-   );
-
-   CREATE TABLE favorites (
-     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-     wallpaper_id UUID REFERENCES wallpapers(id) ON DELETE CASCADE,
-     created_at TIMESTAMPTZ DEFAULT now(),
-     PRIMARY KEY (user_id, wallpaper_id)
-   );
-
-   CREATE TABLE collections (
-     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-     name TEXT NOT NULL,
-     description TEXT,
-     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-     cover_wallpaper_id UUID REFERENCES wallpapers(id),
-     is_public BOOLEAN DEFAULT false,
-     created_at TIMESTAMPTZ DEFAULT now(),
-     updated_at TIMESTAMPTZ DEFAULT now()
-   );
-
-   CREATE TABLE collection_items (
-     collection_id UUID REFERENCES collections(id) ON DELETE CASCADE,
-     wallpaper_id UUID REFERENCES wallpapers(id) ON DELETE CASCADE,
-     order_index INT DEFAULT 0,
-     added_at TIMESTAMPTZ DEFAULT now(),
-     PRIMARY KEY (collection_id, wallpaper_id)
-   );
-
-   CREATE TABLE download_log (
-     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-     wallpaper_id UUID REFERENCES wallpapers(id) ON DELETE CASCADE,
-     user_id UUID REFERENCES auth.users(id),
-     downloaded_at TIMESTAMPTZ DEFAULT now(),
-     platform TEXT,
-     resolution TEXT
-   );
-
-   CREATE TABLE usage_stats (
-     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-     date DATE NOT NULL DEFAULT CURRENT_DATE,
-     wallpapers_viewed INT DEFAULT 0,
-     wallpapers_set INT DEFAULT 0,
-     wallpapers_downloaded INT DEFAULT 0,
-     UNIQUE(user_id, date)
-   );
-
-   -- Indexes
-   CREATE INDEX idx_wallpapers_category ON wallpapers(category_id);
-   CREATE INDEX idx_wallpapers_resolution ON wallpapers(resolution);
-   CREATE INDEX idx_wallpapers_orientation ON wallpapers(orientation);
-   CREATE INDEX idx_wallpapers_created ON wallpapers(created_at DESC);
-   CREATE INDEX idx_wallpapers_downloads ON wallpapers(downloads_count DESC);
-   CREATE INDEX idx_favorites_user ON favorites(user_id);
-   CREATE INDEX idx_collections_user ON collections(user_id);
-   CREATE INDEX idx_collection_items_collection ON collection_items(collection_id);
-   CREATE INDEX idx_usage_stats_user_date ON usage_stats(user_id, date DESC);
+1. **App Shell** (`App.tsx`) — layout with sidebar + main content area
+2. **Sidebar** — navigation with icon + label, active indicator with `layoutId` glide animation
+   - Dashboard, Categories, Collections, Favorites, Analytics, Settings
+   - Collapse/expand with smooth width transition
+3. **Theme System** — dark/light mode with `class` strategy on `<html>`:
+   - `useTheme` hook with localStorage persistence
+   - System preference detection via `prefers-color-scheme`
+   - Smooth color transitions (CSS transitions on `background-color`, `color`, `border-color`)
+4. **Tailwind v4 Theme Config** (`src/index.css`):
+   ```css
+   @import "tailwindcss";
+   @theme {
+     --font-sans: "Inter", system-ui, sans-serif;
+     --color-background: var(--bg);
+     --color-foreground: var(--fg);
+     --color-card: var(--card);
+     --color-card-foreground: var(--card-fg);
+     --color-muted: var(--muted);
+     --color-accent: var(--accent);
+     --color-accent-foreground: var(--accent-fg);
+     /* Glassmorphism tokens */
+     --color-glass: var(--glass);
+     --color-glass-border: var(--glass-border);
+   }
    ```
+5. **Glassmorphism Utility Classes** — `backdrop-blur-xl bg-white/10 dark:bg-white/5 border border-white/20`
+6. **Typography Setup** — Inter font via `@fontsource/inter`, heading/body hierarchy
+7. **MotionConfig** — global animation config with reduced-motion detection
+8. **AnimatePresence** — page transition wrapper
+9. **Install shadcn/ui components**: Button, Card, Input, Badge, Avatar, ScrollArea, Sheet, Dialog, DropdownMenu, Tabs, Tooltip, Separator, Skeleton
+10. **Custom WallpaperCard** base component (for reuse in grid)
+11. **Titlebar** — custom draggable titlebar with window controls (minimize, maximize, close) using `data-tauri-drag-region`
 
-2. **RLS Policies:**
-   - `wallpapers`: public read, authenticated write (admin role)
-   - `categories`: public read, authenticated write (admin role)
-   - `favorites`: users can CRUD own favorites only
-   - `collections`: users can CRUD own collections; public collections readable by all
-   - `collection_items`: users can CRUD items in own collections
-   - `download_log`: users can insert own logs; read own logs
-   - `usage_stats`: users can CRUD own stats
+**Deliverable:** App shell with sidebar, dark/light mode, glassmorphism cards, premium typography, custom titlebar.
 
-3. **Storage bucket:** `wallpapers` with public access for thumbnails, signed URLs for full-res
-
-4. **Edge Functions** (`supabase/functions/`):
-   - `generate-thumbnails`: On upload → create small(300px), medium(600px), large(1200px) WebP
-   - `track-popular`: Aggregate downloads by platform/time range, update wallpaper stats
-   - `sync-analytics`: Batch sync offline usage data on reconnect
-
-5. **Seed data** (`supabase/seed.sql`):
-   - 8 categories with icons and colors
-   - 100+ wallpaper entries across all categories with real Unsplash/Pexels URLs
-   - Realistic metadata (resolution, dimensions, author, license)
-
-6. **TypeScript types** (`src/types/database.ts`):
-   - Auto-generated from Supabase schema via `supabase gen types typescript`
-
-7. **Supabase client** (`src/lib/supabase.ts`):
-   - Client initialization with `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`
-   - Typed client with generated types
-
-**Deliverable:** Database schema deployed, RLS enforced, Edge Functions deployed, seed data loaded.
-
-**Dependencies:** Phase 1
+**Files Created:**
+```
+├── src/
+│   ├── App.tsx                  # App shell with router + sidebar
+│   ├── index.css                # Tailwind v4 theme + glassmorphism
+│   ├── components/
+│   │   ├── ui/                  # shadcn/ui components (auto-generated)
+│   │   ├── layout/
+│   │   │   ├── Sidebar.tsx
+│   │   │   ├── Titlebar.tsx
+│   │   │   ├── PageTransition.tsx
+│   │   │   └── AppLayout.tsx
+│   │   └── wallpaper/
+│   │       └── WallpaperCard.tsx # Base card component
+│   ├── hooks/
+│   │   ├── useTheme.ts
+│   │   └── useReducedMotion.ts
+│   └── stores/
+│       └── appStore.ts          # Global app state (sidebar, theme)
+```
 
 ---
 
-### Phase 5 — Wallpaper Gallery & Masonry Grid (2.5h)
-**Goal:** Browsing wallpapers with Pinterest-style masonry grid, filters, search, preview.
+### Chunk 5: Wallpaper Grid & Masonry Layout (2h)
+
+**Goal:** Pinterest-style masonry grid with spring animations, hover effects, preview modal.
 
 **Tasks:**
-1. **Wallpaper store** (`src/stores/wallpaper.ts`):
-   - Zustand store: wallpapers[], selectedWallpaper, filters, searchQuery, viewMode
-   - Actions: setFilters, setSearch, toggleViewMode, selectWallpaper
-
-2. **TanStack Query hooks** (`src/hooks/useWallpapers.ts`):
-   - `useWallpapers(filters)` — paginated fetch with infinite scroll
-   - `useWallpaper(id)` — single wallpaper detail
-   - `useCategories()` — all categories with counts
-   - `useSearchWallpapers(query, filters)` — real-time search with debounce
-   - `usePopularWallpapers()` — trending/popular
-
-3. **Masonry grid** (`src/components/wallpaper/WallpaperGrid.tsx`):
-   - `react-masonry-css` with responsive breakpoints: 4→3→2→1 columns
+1. **MasonryGrid** component using `react-masonry-css`:
+   - Responsive breakpoints: 4 cols (1440px+), 3 (1024px), 2 (768px), 1 (mobile)
    - Variable card heights based on image aspect ratio
-   - Staggered reveal: `motion` variants with `staggerChildren: 0.05`
-   - Infinite scroll with IntersectionObserver sentinel
-   - Loading skeleton with pulse animation
-   - Empty state with illustration
+   - Gap: 16px consistent spacing
+2. **WallpaperCard** enhanced:
+   - Image with progressive loading (blur placeholder → sharp)
+   - Lazy loading via `IntersectionObserver`
+   - Aspect ratio maintained from `width`/`height` metadata
+   - Glassmorphism overlay on hover with title, resolution badge, action buttons
+   - `whileHover={{ scale: 1.02, y: -4 }}` with spring `{ stiffness: 300, damping: 20 }`
+   - `whileTap={{ scale: 0.98 }}` press state
+   - Resolution badge (4K, 2K, 1080p)
+   - Favorite heart button with spring bounce animation
+   - "Set as wallpaper" quick action button
+   - Download button with progress indicator
+3. **Staggered Reveal Animation**:
+   - Container variant: `{ show: { transition: { staggerChildren: 0.06 } } }`
+   - Item variant: `{ hidden: { opacity: 0, y: 30 }, show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 200, damping: 20 } } }`
+   - `whileInView` trigger for scroll-based reveals
+4. **WallpaperPreviewModal**:
+   - Full-screen modal with `AnimatePresence`
+   - Image zoom (scroll wheel) + pan (drag)
+   - Metadata panel (title, author, resolution, tags, colors)
+   - Action buttons: Set Wallpaper, Download, Favorite, Add to Collection
+   - Keyboard navigation (Esc to close, arrow keys for next/prev)
+   - Parallax background blur effect
+5. **Infinite Scroll** — load more wallpapers on scroll with intersection observer
+6. **Image Optimization** — use Supabase Storage URL params for on-the-fly resizing (`?width=400&resize=cover&quality=80`)
 
-4. **Wallpaper card** (`src/components/wallpaper/WallpaperCard.tsx`):
-   - Glassmorphism card with rounded-2xl, soft shadow
-   - Progressive image loading: blur placeholder → sharp
-   - Hover: spring scale(1.02) + y(-4) + shadow increase
-   - Overlay on hover: title, resolution badge, heart button, set button
-   - Orientation badge (portrait/landscape/square)
-   - Click → open preview modal
+**Deliverable:** Beautiful masonry grid with spring animations, hover effects, preview modal, infinite scroll.
 
-5. **Preview modal** (`src/components/wallpaper/WallpaperPreview.tsx`):
-   - Full-screen modal with backdrop blur
-   - Image with zoom (scroll wheel) and pan (drag)
-   - Metadata panel: title, category, resolution, author, license, colors
-   - Action buttons: Set Wallpaper, Download, Add to Collection, Favorite
-   - Keyboard: Escape to close, arrow keys for next/prev
-   - Motion: enter with scale(0.95)→1 + fade, exit reverse
+**Files Created:**
+```
+├── src/
+│   ├── components/
+│   │   ├── wallpaper/
+│   │   │   ├── MasonryGrid.tsx
+│   │   │   ├── WallpaperCard.tsx    # Enhanced with hover + actions
+│   │   │   ├── WallpaperPreview.tsx # Full-screen modal
+│   │   │   ├── WallpaperActions.tsx # Set, Download, Favorite buttons
+│   │   │   └── ImageLoader.tsx      # Progressive image loading
+│   │   └── ui/
+│   │       └── AnimatedCounter.tsx  # Reusable animated number
+│   ├── hooks/
+│   │   ├── useWallpapers.ts        # Fetch + cache wallpapers
+│   │   ├── useInfiniteScroll.ts
+│   │   └── useImageLoader.ts
+│   └── pages/
+│       └── Dashboard.tsx           # Main wallpaper grid page
+```
 
-6. **Category tabs** (`src/components/wallpaper/CategoryTabs.tsx`):
-   - Horizontal scrollable tabs with icons
-   - Active indicator: `layoutId` animated underline that glides between tabs
-   - "All" + 8 categories
-   - Count badge per category
+---
 
-7. **Search bar** (`src/components/wallpaper/SearchBar.tsx`):
-   - Input with search icon, debounced 300ms
-   - Recent searches dropdown (from store)
-   - Filter chips: resolution, orientation, sort order
-   - Clear button with spring animation
+### Chunk 6: Search, Filters & Categories (2h)
 
-8. **Filter panel** (`src/components/wallpaper/FilterPanel.tsx`):
-   - Resolution: 4K, 2K, 1080p, Ultrawide
-   - Orientation: Portrait, Landscape, Square
+**Goal:** Real-time search, category system, filter/sort controls with smooth animations.
+
+**Tasks:**
+1. **SearchBar** component:
+   - Debounced input (300ms) via `useDeferredValue` or custom debounce hook
+   - Search icon with animated expand on focus
+   - Clear button with spring rotation animation
+   - Search history stored in localStorage, displayed as suggestions
+   - Keyboard shortcut: `Cmd/Ctrl+K` global shortcut
+2. **CategoryTabs**:
+   - Horizontal scrollable tab bar with icons
+   - Active indicator pill with `layoutId` smooth glide animation
+   - Categories: Nature, Abstract, Minimal, Dark, Anime, Architecture, Space, Animals
+   - Staggered tab reveal on mount
+3. **FilterPanel** (collapsible sidebar or dropdown):
+   - Resolution filter: 4K, 2K, 1080p, Ultrawide, Dual Monitor (multi-select badges)
+   - Orientation filter: Portrait, Landscape, Square
+   - Color filter: Dominant color picker (hex-based grid)
    - Sort: Popular, Newest, Trending, Most Downloaded
-   - Color filter (dominant color swatches)
+   - Clear all filters button
+4. **CategoryPage**:
+   - Category header with icon, name, description, wallpaper count
+   - Category-specific accent color from database
+   - Filtered masonry grid
+5. **Search Results Page**:
+   - Result count with animated counter
+   - "No results" state with illustration
+   - Search suggestions based on partial matches
+6. **State Management**:
+   - `useSearchStore` (Zustand) — query, filters, sort, results
+   - Debounced Supabase queries with `ilike` for text search
+   - Filter composition: category + resolution + orientation + color + sort
 
-9. **Set wallpaper action:**
-   - One-click: invoke `set_wallpaper` Rust command
-   - Download image to cache first, then set from local path
-   - Progress indicator during download
-   - Success notification with toast
+**Deliverable:** Working search with debounce, category tabs with glide indicator, filter panel, sort controls.
 
-10. **Download action:**
-   - Download to user's Downloads folder
-   - Progress bar with percentage
-   - Track in `download_log` table
-
-**Deliverable:** Full wallpaper browsing experience with masonry grid, search, filters, preview, set/download.
-
-**Dependencies:** Phase 2, Phase 3, Phase 4
-
----
-
-### Phase 6 — Favorites & Collections (1.5h)
-**Goal:** Heart favoriting, custom collections, drag-drop reorder, sync.
-
-**Tasks:**
-1. **Favorites system:**
-   - Heart toggle on wallpaper cards with spring bounce animation (scale 1→1.3→1)
-   - Optimistic update: instant UI toggle, background Supabase sync
-   - `useFavorites()` hook: fetch user's favorites, toggle mutation
-   - Favorites view: grid of all liked wallpapers
-   - Favorites rotation mode: auto-rotate only from liked wallpapers
-
-2. **Collections system:**
-   - Create collection: name, description, optional cover image
-   - Collection list view: grid of collection cards with cover, name, count
-   - Collection detail view: wallpaper grid within collection
-   - Add to collection: dropdown/modal to select collection when favoriting
-   - Remove from collection with confirmation
-   - Rename/delete collection with confirmation dialog
-   - Drag-drop reorder within collection (`@dnd-kit/sortable`)
-   - Public/private toggle per collection
-   - Import/export collections as JSON
-
-3. **Supabase sync:**
-   - Favorites table: upsert on toggle, delete on unfavorite
-   - Collections table: CRUD operations
-   - Collection items: ordered by `order_index`
-   - Optimistic updates with rollback on error
-
-4. **UI components:**
-   - `<FavoriteButton>` — heart icon with animated fill
-   - `<CollectionCard>` — cover image, name, count, actions
-   - `<CollectionGrid>` — responsive grid of collections
-   - `<AddToCollectionModal>` — select/create collection
-   - `<DraggableWallpaperGrid>` — sortable grid within collection
-
-**Deliverable:** Full favorites and collections with sync, drag-drop reorder.
-
-**Dependencies:** Phase 4, Phase 5
+**Files Created:**
+```
+├── src/
+│   ├── components/
+│   │   ├── search/
+│   │   │   ├── SearchBar.tsx
+│   │   │   ├── SearchSuggestions.tsx
+│   │   │   └── SearchHistory.tsx
+│   │   ├── filters/
+│   │   │   ├── FilterPanel.tsx
+│   │   │   ├── ResolutionFilter.tsx
+│   │   │   ├── OrientationFilter.tsx
+│   │   │   ├── ColorFilter.tsx
+│   │   │   └── SortControl.tsx
+│   │   └── categories/
+│   │       ├── CategoryTabs.tsx
+│   │       └── CategoryPage.tsx
+│   ├── hooks/
+│   │   ├── useSearch.ts
+│   │   ├── useDebounce.ts
+│   │   └── useFilters.ts
+│   ├── stores/
+│   │   ├── searchStore.ts
+│   │   └── filterStore.ts
+│   └── pages/
+│       ├── SearchResults.tsx
+│       └── Category.tsx
+```
 
 ---
 
-### Phase 7 — Settings & Preferences (1.0h)
-**Goal:** All settings panels with persistent storage.
+### Chunk 7: Favorites, Collections & Offline (2h)
+
+**Goal:** Favorites toggle, collections CRUD, drag-drop reorder, offline-first sync.
 
 **Tasks:**
-1. **Settings store** (`src/stores/settings.ts`):
-   - Persisted via `tauri-plugin-store`
-   - Settings: autoRotateInterval, downloadQuality, theme, launchAtStartup, minimizeToTray, notifications, analyticsOptIn
+1. **FavoriteToggle**:
+   - Heart icon with spring bounce on toggle (`scale: [1, 1.3, 1]`)
+   - Optimistic update — UI updates immediately, sync in background
+   - Count badge with animated number transition
+2. **Collections Page**:
+   - Grid of collection cards (cover image, name, wallpaper count)
+   - Create collection dialog (name, description, public/private)
+   - Edit collection (inline rename, description update)
+   - Delete collection with confirmation dialog
+   - Collection detail page with masonry grid of contained wallpapers
+3. **Add to Collection**:
+   - Dropdown menu on wallpaper card → "Add to Collection"
+   - Create new collection option inline
+   - Multi-select: add wallpaper to multiple collections
+4. **Drag & Drop Reorder**:
+   - Reorder wallpapers within collection via drag-and-drop
+   - `@dnd-kit/core` + `@dnd-kit/sortable` for accessible DnD
+   - Smooth spring animation on position change
+   - Persist `order_index` to Supabase
+5. **Import/Export Collections**:
+   - Export collection as JSON (wallpaper IDs + metadata)
+   - Import JSON file via `tauri-plugin-dialog`
+   - Validate JSON schema before import
+6. **Offline-First Sync**:
+   - SQLite local cache via `tauri-plugin-sql`
+   - On app start: check `last_synced_at` timestamp
+   - Pull delta from Supabase using `updated_at > last_synced_at`
+   - Queue local mutations (favorites, collections) when offline
+   - Push queued mutations on reconnect
+   - Conflict resolution: server wins for metadata, client wins for user actions
+   - Network status indicator in UI
+7. **Favorites Page**:
+   - Masonry grid of favorited wallpapers
+   - Filter by category within favorites
+   - "Rotate from favorites" toggle
 
-2. **Settings panels:**
-   - **Rotation:** interval selector (15m/30m/1h/3h/6h/12h/24h/custom), mode (sequential/random/category/favorites)
-   - **Download:** quality selector (original/high/medium/low), storage management (cache size, clear cache button)
-   - **Appearance:** theme (dark/light/system), accent color picker
-   - **General:** launch at startup toggle, minimize to tray toggle
-   - **Shortcuts:** display current global hotkeys (rotate, show/hide)
-   - **Notifications:** toggle for rotation events, new wallpapers
-   - **About:** app version, check for updates, links
+**Deliverable:** Working favorites, collections with drag-drop, offline sync with conflict resolution.
 
-3. **Supabase settings sync:**
-   - Sync settings to `user_preferences` table (JSONB column)
-   - Background sync on change, debounced 2s
-   - Conflict resolution: last-write-wins with timestamp
-
-4. **Storage management:**
-   - Display current cache size with progress bar
-   - Clear cache button with confirmation
-   - Set cache size limit (1GB/5GB/10GB/unlimited)
-
-**Deliverable:** All settings functional, persisted locally and synced to Supabase.
-
-**Dependencies:** Phase 3, Phase 4
+**Files Created:**
+```
+├── src/
+│   ├── components/
+│   │   ├── favorites/
+│   │   │   └── FavoriteToggle.tsx
+│   │   ├── collections/
+│   │   │   ├── CollectionCard.tsx
+│   │   │   ├── CollectionGrid.tsx
+│   │   │   ├── CollectionDetail.tsx
+│   │   │   ├── CreateCollectionDialog.tsx
+│   │   │   ├── AddToCollectionMenu.tsx
+│   │   │   ├── DraggableWallpaperGrid.tsx
+│   │   │   └── ImportExportDialog.tsx
+│   │   └── ui/
+│   │       └── NetworkStatus.tsx
+│   ├── hooks/
+│   │   ├── useFavorites.ts
+│   │   ├── useCollections.ts
+│   │   ├── useOfflineSync.ts
+│   │   └── useDragDrop.ts
+│   ├── stores/
+│   │   ├── favoritesStore.ts
+│   │   └── collectionsStore.ts
+│   ├── lib/
+│   │   ├── offline-queue.ts
+│   │   └── sync-engine.ts
+│   └── pages/
+│       ├── Favorites.tsx
+│       └── Collections.tsx
+```
 
 ---
 
-### Phase 8 — Analytics Dashboard (1.5h)
-**Goal:** Usage statistics with animated charts and counters.
+### Chunk 8: Settings, Auto-Rotate & System Tray (2h)
+
+**Goal:** Settings panel, auto-rotate UI, system tray integration, global hotkeys.
 
 **Tasks:**
-1. **Analytics store** (`src/stores/analytics.ts`):
-   - Stats: totalViewed, totalSet, totalDownloaded, streak days
-   - Category breakdown, time-series data
+1. **Settings Page**:
+   - Sectioned layout with smooth scroll between sections
+   - Each section animates in with staggered reveal
+2. **Rotation Settings**:
+   - Interval selector: 15min, 30min, 1hr, 3hr, 6hr, 12hr, 24hr, custom
+   - Smart rotation mode: time-of-day (morning/afternoon/evening/night)
+   - Category-based rotation: select which categories to rotate through
+   - Favorites-only rotation toggle
+   - Next rotation countdown timer with animated digits
+   - Pause/Resume rotation button
+3. **Download Settings**:
+   - Quality selector: Original, High, Medium, Low (maps to Supabase Storage transform params)
+   - Default download location picker
+   - Storage management:
+     - Current cache size (animated counter)
+     - Cache limit slider (1GB, 2GB, 5GB, 10GB, Unlimited)
+     - Clear cache button with confirmation
+4. **Theme Settings**:
+   - Dark / Light / System toggle with smooth transition
+   - Preview of current theme
+5. **Startup Settings**:
+   - Launch at startup toggle (via `tauri-plugin-autostart`)
+   - Minimize to tray toggle
+   - Start minimized toggle
+6. **Keyboard Shortcuts**:
+   - Display current shortcuts
+   - Global hotkeys via `tauri-plugin-global-shortcut`:
+     - `Cmd/Ctrl+Shift+W` → Next wallpaper
+     - `Cmd/Ctrl+Shift+R` → Toggle rotation
+     - `Cmd/Ctrl+Shift+F` → Toggle favorite
+     - `Cmd/Ctrl+K` → Open search
+7. **Notification Settings**:
+   - New wallpaper notifications toggle
+   - Rotation event notifications toggle
+   - Notification sound toggle
+8. **API Settings**:
+   - Supabase URL input (for self-hosted)
+   - Supabase anon key input
+   - Test connection button
+9. **System Tray Integration**:
+   - Tray icon with context menu
+   - Show/Hide window
+   - Pause/Resume rotation
+   - Next wallpaper
+   - Quick favorites access
+   - Quit
+10. **Window State Persistence**:
+    - Save window size, position, maximized state via `tauri-plugin-window-state`
+    - Restore on next launch
 
-2. **Analytics hooks:**
-   - `useUsageStats(period)` — daily/weekly/monthly aggregated stats
-   - `usePopularWallpapers(limit)` — most set/downloaded
-   - `useCategoryBreakdown()` — distribution per category
-   - `useStreak()` — consecutive days counter
+**Deliverable:** Full settings panel, auto-rotate with UI controls, system tray, global hotkeys.
 
-3. **Dashboard components:**
-   - **Stat cards** (4): Total Viewed, Total Set, Total Downloaded, Current Streak
-     - Animated counters with spring physics (`useMotionValue` + `animate()`)
-     - Icon + label + value with staggered reveal
-     - Trend indicator (up/down arrow with percentage)
-   - **Category breakdown:** Donut chart (Recharts `PieChart`) with animated reveal
-     - Each segment fills progressively on mount
-     - Legend with counts and percentages
-     - Click segment → filter gallery to that category
-   - **Usage timeline:** Area chart (Recharts `AreaChart`) showing daily activity
-     - Smooth line animation on mount
-     - Tooltip with exact counts on hover
-     - Toggle between viewed/set/downloaded metrics
-   - **Popular wallpapers:** Horizontal scroll of top 5 most-set wallpapers
-     - Cards with set count badge
-     - Click → preview
-   - **Streak display:** Calendar heatmap (last 30 days)
-     - Color intensity based on activity level
-     - Current streak highlighted
-
-4. **Data tracking:**
-   - Track `wallpaper_viewed` on preview open
-   - Track `wallpaper_set` on set action
-   - Track `wallpaper_downloaded` on download
-   - Batch sync to Supabase `usage_stats` table
-   - Offline: store locally, sync on reconnect
-
-**Deliverable:** Animated analytics dashboard with real usage data.
-
-**Dependencies:** Phase 4, Phase 5
+**Files Created:**
+```
+├── src/
+│   ├── components/
+│   │   ├── settings/
+│   │   │   ├── SettingsPage.tsx
+│   │   │   ├── RotationSettings.tsx
+│   │   │   ├── DownloadSettings.tsx
+│   │   │   ├── ThemeSettings.tsx
+│   │   │   ├── StartupSettings.tsx
+│   │   │   ├── ShortcutSettings.tsx
+│   │   │   ├── NotificationSettings.tsx
+│   │   │   └── ApiSettings.tsx
+│   │   └── rotation/
+│   │       ├── RotationTimer.tsx
+│   │       └── RotationControls.tsx
+│   ├── hooks/
+│   │   ├── useRotation.ts
+│   │   ├── useSettings.ts
+│   │   ├── useGlobalShortcuts.ts
+│   │   └── useSystemTray.ts
+│   ├── stores/
+│   │   └── settingsStore.ts
+│   └── pages/
+│       └── Settings.tsx
+```
 
 ---
 
-### Phase 9 — Auth & Cross-Device Sync (1.5h)
-**Goal:** Authentication flow, secure token storage, cross-device sync.
+### Chunk 9: Analytics Dashboard & Auth (2h)
+
+**Goal:** Usage analytics with animated charts, authentication flow, cross-device sync.
 
 **Tasks:**
-1. **Auth flow:**
-   - Anonymous auth on first launch (auto-create user)
-   - Optional upgrade: email/password, Google OAuth, GitHub OAuth
-   - Auth store: user, session, isAuthenticated
-   - Auth guard for protected routes (collections, favorites, settings sync)
+1. **Analytics Dashboard**:
+   - Overview cards with animated counters:
+     - Total wallpapers viewed (spring-animated number)
+     - Wallpapers set as desktop (spring-animated number)
+     - Wallpapers downloaded (spring-animated number)
+     - Current streak (consecutive days)
+   - Category breakdown: pie/donut chart (`recharts`) with progressive reveal animation
+   - Usage timeline: line chart (daily/weekly/monthly toggle) with animated draw-in
+   - Popular wallpapers: ranked list with slide-in stagger animation
+   - Time range selector: 7d, 30d, 90d, All Time
+   - Charts animate in with `whileInView` + staggered delays
+2. **Authentication Flow**:
+   - **Anonymous auth** — automatic on first launch (`supabase.auth.signInAnonymously()`)
+   - **Sign Up** — email/password with form validation
+   - **Sign In** — email/password with error handling
+   - **OAuth** — Google, Apple, GitHub via `signInWithOAuth()` → system browser
+   - **Account linking** — convert anonymous to permanent (email or OAuth)
+   - **Auth state management** — `useAuth` hook with Supabase `onAuthStateChange`
+   - **Token storage** — JWT in `tauri-plugin-stronghold` (encrypted)
+   - **Session restore** — on app start, load tokens from Stronghold, call `setSession()`
+3. **Sync After Auth**:
+   - On login: push local favorites/collections to Supabase
+   - On login: pull remote favorites/collections to local
+   - Merge strategy: union for favorites, conflict resolution for collections
+   - Background sync indicator
+4. **Auth UI**:
+   - Login/Signup modal with glassmorphism
+   - User avatar + name in sidebar footer
+   - Sign out button with confirmation
 
-2. **Supabase Auth integration:**
-   - `signInAnonymously()` on first launch
-   - `signInWithPassword({ email, password })`
-   - `signInWithOAuth({ provider: 'google' | 'github' })` — opens system browser
-   - `signOut()` with session cleanup
-   - `onAuthStateChange()` listener for session management
+**Deliverable:** Analytics dashboard with animated charts, working auth (anonymous + email + OAuth), cross-device sync.
 
-3. **Secure token storage:**
-   - Store Supabase JWT in `tauri-plugin-stronghold` (encrypted vault)
-   - Auto-refresh token before expiry
-   - Fallback to `tauri-plugin-store` if stronghold unavailable
-
-4. **Cross-device sync:**
-   - Sync favorites, collections, settings to Supabase on login
-   - Background sync every 5 minutes when authenticated
-   - Conflict resolution: server-timestamp wins with merge for collections
-   - Sync status indicator in UI (synced/syncing/offline/error)
-   - Offline queue: store mutations locally, replay on reconnect
-
-5. **Auth UI:**
-   - Login modal/panel with email/password fields
-   - OAuth buttons (Google, GitHub) with brand colors
-   - Profile dropdown: avatar, email, sign out
-   - Anonymous user banner: "Sign in to sync across devices"
-
-**Deliverable:** Auth flow working, tokens secured, cross-device sync operational.
-
-**Dependencies:** Phase 4
+**Files Created:**
+```
+├── src/
+│   ├── components/
+│   │   ├── analytics/
+│   │   │   ├── AnalyticsDashboard.tsx
+│   │   │   ├── StatsCard.tsx
+│   │   │   ├── CategoryChart.tsx
+│   │   │   ├── UsageTimeline.tsx
+│   │   │   ├── PopularWallpapers.tsx
+│   │   │   └── StreakCounter.tsx
+│   │   ├── auth/
+│   │   │   ├── AuthModal.tsx
+│   │   │   ├── LoginForm.tsx
+│   │   │   ├── SignupForm.tsx
+│   │   │   ├── OAuthButtons.tsx
+│   │   │   └── UserMenu.tsx
+│   │   └── ui/
+│   │       └── AnimatedNumber.tsx
+│   ├── hooks/
+│   │   ├── useAuth.ts
+│   │   ├── useAnalytics.ts
+│   │   └── useSync.ts
+│   ├── stores/
+│   │   ├── authStore.ts
+│   │   └── analyticsStore.ts
+│   └── pages/
+│       └── Analytics.tsx
+```
 
 ---
 
-### Phase 10 — CI/CD, Polish & Release (2.5h)
-**Goal:** Production builds for all platforms, code signing, final polish.
+### Chunk 10: CI/CD, Polish & Release (2h)
+
+**Goal:** GitHub Actions workflows, auto-update, final polish, version tag, release build.
 
 **Tasks:**
-1. **GitHub Actions CI** (`.github/workflows/ci.yml`):
-   - Trigger: PR to main
-   - Jobs: lint (ESLint + Prettier), type-check (tsc --noEmit), test (Vitest)
-   - Rust: `cargo check`, `cargo clippy`, `cargo test`
-   - Cache: node_modules, cargo registry, target/
-
-2. **GitHub Actions Release** (`.github/workflows/release.yml`):
-   - Trigger: tag push `v*`
-   - Matrix: macOS (ARM64 + x64), Windows (x64), Linux (x64 + ARM64)
-   - Uses `tauri-apps/tauri-action@v0`
-   - macOS: DMG, code sign with Apple Developer ID, notarize with `xcrun notarytool`
-   - Windows: EXE + MSI, code sign with certificate
-   - Linux: AppImage + DEB + RPM
-   - Upload all artifacts to GitHub Releases as draft
-   - Generate updater JSON (`latest.json`) for auto-update
+1. **GitHub Actions — CI** (`.github/workflows/ci.yml`):
+   - Trigger: push to any branch, PR to main
+   - Matrix: macOS, Windows, Ubuntu
+   - Steps: checkout, setup node, setup rust, install deps, lint, type-check, build frontend
+   - Cache: `swatinem/rust-cache@v2` + pnpm store cache
+2. **GitHub Actions — Release** (`.github/workflows/release.yml`):
+   - Trigger: push tag `v*`
+   - Matrix build:
+     - `macos-latest` (aarch64 + x86_64 universal)
+     - `windows-latest` (EXE + MSI)
+     - `ubuntu-22.04` (AppImage + DEB + RPM)
+   - Linux prereqs: `libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf`
+   - Uses `tauri-apps/tauri-action@v0` with `uploadUpdaterJson: true`
+   - Upload artifacts to GitHub Releases as draft
    - Auto-generate release notes from commits
+3. **Auto-Updater Config**:
+   - Generate signing key pair (`tauri signer generate`)
+   - Store private key in GitHub Secrets (`TAURI_SIGNING_PRIVATE_KEY`)
+   - Configure `tauri.conf.json` with pubkey + GitHub Releases endpoint
+   - Test update flow: bump version → tag → release → app detects update
+4. **Code Signing Setup** (documented, not executed — requires certificates):
+   - macOS: Apple Developer ID, notarization env vars
+   - Windows: OV/EV certificate, `WINDOWS_CERTIFICATE` secret
+   - Store docs in `docs/signing.md`
+5. **App Icons** — generate all sizes from 1024px source:
+   - macOS: `.icns` (512, 256, 128, 32, 16)
+   - Windows: `.ico` (256, 128, 48, 32, 16)
+   - Linux: `.png` (512, 256, 128)
+6. **Final Polish**:
+   - Loading skeletons for all data-dependent components
+   - Error boundaries with retry buttons
+   - Empty states with illustrations (no favorites yet, no collections yet)
+   - Keyboard navigation audit (Tab, Enter, Esc, Arrow keys)
+   - Reduced-motion audit — all animations respect `useReducedMotion()`
+   - Performance audit — verify 60fps with React DevTools Profiler
+   - Remove all `console.log` statements
+   - Verify all TypeScript strict mode errors resolved
+7. **Version Bump & Release**:
+   - `package.json` version → `1.0.0`
+   - `src-tauri/Cargo.toml` version → `1.0.0`
+   - `src-tauri/tauri.conf.json` version → `1.0.0`
+   - Git tag `v1.0.0`, push to trigger release build
+   - Verify all platform artifacts upload to GitHub Releases
+8. **Documentation**:
+   - `README.md` — project overview, screenshots, install instructions, dev setup
+   - `CONTRIBUTING.md` — development workflow, code style
+   - `docs/signing.md` — code signing setup guide
 
-3. **Environment secrets:**
-   - `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`
-   - `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID`
-   - `WINDOWS_CERTIFICATE`, `WINDOWS_CERTIFICATE_PASSWORD`
-   - `TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
-   - `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
+**Deliverable:** Working CI/CD, auto-update, polished UI, tagged release, all platform builds.
 
-4. **Auto-update:**
-   - Configure `tauri-plugin-updater` with GitHub Releases endpoint
-   - Check for updates on launch (background)
-   - Notification: "Update available — v{version}" with Download button
-   - Download and install with progress indicator
-   - Relaunch after update
-
-5. **Final polish:**
-   - Accessibility audit: ARIA labels, keyboard navigation, focus management
-   - `prefers-reduced-motion` support: disable animations, instant transitions
-   - Performance audit: 60fps scroll, lazy image loading, virtual list for 1000+ items
-   - Error boundaries: catch and display graceful error states
-   - Loading states: skeleton screens for all async operations
-   - Empty states: illustrations for no results, no favorites, no collections
-   - Keyboard shortcuts: Escape (close modal), Arrow keys (navigate), Space (preview)
-   - Window state persistence: size, position, maximized state
-   - Tray behavior: close minimizes to tray, quit from tray menu
-   - App icon: .icns (macOS), .ico (Windows), .png (Linux) — all resolutions
-
-6. **Documentation:**
-   - README.md with install instructions, screenshots, features
-   - CONTRIBUTING.md with dev setup guide
-   - LICENSE (MIT)
-
-**Deliverable:** Production builds on all platforms, code signed, auto-update working, shippable.
-
-**Dependencies:** All previous phases
+**Files Created:**
+```
+├── .github/
+│   └── workflows/
+│       ├── ci.yml
+│       └── release.yml
+├── docs/
+│   └── signing.md
+├── README.md
+└── CONTRIBUTING.md
+```
 
 ---
 
-## Project Directory Structure
+## File Structure (Complete)
 
 ```
 Wallpaper-House-2026/
 ├── .github/
 │   └── workflows/
-│       ├── ci.yml                    # Lint, type-check, test on PR
-│       └── release.yml               # Multi-platform build + release on tag
-├── src/                              # React frontend
-│   ├── main.tsx                      # App entry point
-│   ├── App.tsx                       # Root component with providers
-│   ├── index.css                     # Tailwind v4 imports + custom theme
+│       ├── ci.yml
+│       └── release.yml
+├── docs/
+│   └── signing.md
+├── public/
+│   └── favicon.ico
+├── src/
+│   ├── main.tsx
+│   ├── App.tsx
+│   ├── index.css
+│   ├── vite-env.d.ts
 │   ├── components/
-│   │   ├── ui/                       # shadcn/ui components (auto-generated)
-│   │   │   ├── button.tsx
-│   │   │   ├── dialog.tsx
-│   │   │   ├── input.tsx
-│   │   │   ├── select.tsx
-│   │   │   ├── tabs.tsx
-│   │   │   ├── toast.tsx
-│   │   │   ├── tooltip.tsx
-│   │   │   ├── dropdown-menu.tsx
-│   │   │   ├── sheet.tsx
-│   │   │   ├── skeleton.tsx
-│   │   │   ├── slider.tsx
-│   │   │   ├── switch.tsx
-│   │   │   └── badge.tsx
+│   │   ├── ui/                        # shadcn/ui (20+ components)
 │   │   ├── layout/
-│   │   │   ├── AppShell.tsx          # Main layout with sidebar
-│   │   │   ├── Sidebar.tsx           # Navigation sidebar
-│   │   │   ├── TitleBar.tsx          # Custom titlebar (macOS traffic lights)
-│   │   │   └── StatusBar.tsx         # Bottom status bar (sync status)
+│   │   │   ├── AppLayout.tsx
+│   │   │   ├── Sidebar.tsx
+│   │   │   ├── Titlebar.tsx
+│   │   │   └── PageTransition.tsx
 │   │   ├── wallpaper/
-│   │   │   ├── WallpaperGrid.tsx     # Masonry grid with infinite scroll
-│   │   │   ├── WallpaperCard.tsx     # Individual card with hover effects
-│   │   │   ├── WallpaperPreview.tsx  # Full-screen preview modal
-│   │   │   ├── CategoryTabs.tsx      # Animated category filter tabs
-│   │   │   ├── SearchBar.tsx         # Search with debounce + filters
-│   │   │   ├── FilterPanel.tsx       # Resolution/orientation/sort filters
-│   │   │   └── SetWallpaperButton.tsx # One-click set with progress
+│   │   │   ├── MasonryGrid.tsx
+│   │   │   ├── WallpaperCard.tsx
+│   │   │   ├── WallpaperPreview.tsx
+│   │   │   ├── WallpaperActions.tsx
+│   │   │   └── ImageLoader.tsx
+│   │   ├── search/
+│   │   │   ├── SearchBar.tsx
+│   │   │   ├── SearchSuggestions.tsx
+│   │   │   └── SearchHistory.tsx
+│   │   ├── filters/
+│   │   │   ├── FilterPanel.tsx
+│   │   │   ├── ResolutionFilter.tsx
+│   │   │   ├── OrientationFilter.tsx
+│   │   │   ├── ColorFilter.tsx
+│   │   │   └── SortControl.tsx
+│   │   ├── categories/
+│   │   │   ├── CategoryTabs.tsx
+│   │   │   └── CategoryPage.tsx
 │   │   ├── favorites/
-│   │   │   ├── FavoriteButton.tsx    # Heart toggle with bounce
-│   │   │   └── FavoritesView.tsx     # Favorites gallery view
+│   │   │   └── FavoriteToggle.tsx
 │   │   ├── collections/
-│   │   │   ├── CollectionCard.tsx    # Collection preview card
-│   │   │   ├── CollectionGrid.tsx    # Grid of collections
-│   │   │   ├── CollectionDetail.tsx  # Single collection view
-│   │   │   └── AddToCollectionModal.tsx
+│   │   │   ├── CollectionCard.tsx
+│   │   │   ├── CollectionGrid.tsx
+│   │   │   ├── CollectionDetail.tsx
+│   │   │   ├── CreateCollectionDialog.tsx
+│   │   │   ├── AddToCollectionMenu.tsx
+│   │   │   ├── DraggableWallpaperGrid.tsx
+│   │   │   └── ImportExportDialog.tsx
 │   │   ├── analytics/
-│   │   │   ├── AnalyticsDashboard.tsx # Main analytics view
-│   │   │   ├── StatCard.tsx          # Animated counter card
-│   │   │   ├── CategoryChart.tsx     # Donut chart
-│   │   │   ├── UsageTimeline.tsx     # Area chart
-│   │   │   └── StreakCalendar.tsx    # Activity heatmap
-│   │   ├── settings/
-│   │   │   ├── SettingsView.tsx      # Settings page with tabs
-│   │   │   ├── RotationSettings.tsx  # Auto-rotate config
-│   │   │   ├── DownloadSettings.tsx  # Quality + storage
-│   │   │   ├── AppearanceSettings.tsx # Theme + accent
-│   │   │   └── AccountSettings.tsx   # Auth + profile
+│   │   │   ├── AnalyticsDashboard.tsx
+│   │   │   ├── StatsCard.tsx
+│   │   │   ├── CategoryChart.tsx
+│   │   │   ├── UsageTimeline.tsx
+│   │   │   ├── PopularWallpapers.tsx
+│   │   │   └── StreakCounter.tsx
 │   │   ├── auth/
-│   │   │   ├── AuthModal.tsx         # Login/signup modal
-│   │   │   └── UserMenu.tsx          # Profile dropdown
-│   │   └── motion/
-│   │       ├── FadeIn.tsx            # Reusable fade-in wrapper
-│   │       ├── StaggerChildren.tsx   # Staggered children container
-│   │       ├── AnimatedCounter.tsx   # Number counter animation
-│   │       ├── ParallaxSection.tsx   # Scroll parallax
-│   │       └── PageTransition.tsx    # Route transition wrapper
+│   │   │   ├── AuthModal.tsx
+│   │   │   ├── LoginForm.tsx
+│   │   │   ├── SignupForm.tsx
+│   │   │   ├── OAuthButtons.tsx
+│   │   │   └── UserMenu.tsx
+│   │   ├── settings/
+│   │   │   ├── SettingsPage.tsx
+│   │   │   ├── RotationSettings.tsx
+│   │   │   ├── DownloadSettings.tsx
+│   │   │   ├── ThemeSettings.tsx
+│   │   │   ├── StartupSettings.tsx
+│   │   │   ├── ShortcutSettings.tsx
+│   │   │   ├── NotificationSettings.tsx
+│   │   │   └── ApiSettings.tsx
+│   │   ├── rotation/
+│   │   │   ├── RotationTimer.tsx
+│   │   │   └── RotationControls.tsx
+│   │   └── ui/
+│   │       ├── AnimatedCounter.tsx
+│   │       ├── AnimatedNumber.tsx
+│   │       ├── NetworkStatus.tsx
+│   │       └── Skeleton.tsx
 │   ├── hooks/
-│   │   ├── useWallpapers.ts          # Wallpaper CRUD queries
-│   │   ├── useFavorites.ts           # Favorites toggle + list
-│   │   ├── useCollections.ts         # Collection CRUD
-│   │   ├── useCategories.ts          # Category list
-│   │   ├── useSearch.ts              # Search with debounce
-│   │   ├── useAnalytics.ts           # Usage stats queries
-│   │   ├── useAuth.ts                # Auth state + actions
-│   │   ├── useSettings.ts            # Settings read/write
-│   │   ├── useRotation.ts            # Rotation control
-│   │   ├── useSync.ts                # Background sync
-│   │   └── useTauriCommand.ts        # Generic invoke wrapper
+│   │   ├── useTheme.ts
+│   │   ├── useReducedMotion.ts
+│   │   ├── useWallpapers.ts
+│   │   ├── useInfiniteScroll.ts
+│   │   ├── useImageLoader.ts
+│   │   ├── useSearch.ts
+│   │   ├── useDebounce.ts
+│   │   ├── useFilters.ts
+│   │   ├── useFavorites.ts
+│   │   ├── useCollections.ts
+│   │   ├── useOfflineSync.ts
+│   │   ├── useDragDrop.ts
+│   │   ├── useRotation.ts
+│   │   ├── useSettings.ts
+│   │   ├── useGlobalShortcuts.ts
+│   │   ├── useSystemTray.ts
+│   │   ├── useAuth.ts
+│   │   ├── useAnalytics.ts
+│   │   └── useSync.ts
 │   ├── stores/
-│   │   ├── wallpaper.ts              # Wallpaper UI state
-│   │   ├── settings.ts               # App settings
-│   │   ├── analytics.ts              # Analytics cache
-│   │   └── auth.ts                   # Auth state
+│   │   ├── appStore.ts
+│   │   ├── searchStore.ts
+│   │   ├── filterStore.ts
+│   │   ├── favoritesStore.ts
+│   │   ├── collectionsStore.ts
+│   │   ├── settingsStore.ts
+│   │   ├── authStore.ts
+│   │   └── analyticsStore.ts
 │   ├── lib/
-│   │   ├── supabase.ts               # Supabase client
-│   │   ├── tauri.ts                   # Tauri command wrappers
-│   │   ├── motion.ts                 # Animation presets
-│   │   └── utils.ts                  # General utilities
+│   │   ├── supabase.ts
+│   │   ├── supabase-queries.ts
+│   │   ├── utils.ts
+│   │   ├── offline-queue.ts
+│   │   └── sync-engine.ts
 │   ├── types/
-│   │   ├── database.ts               # Supabase generated types
-│   │   ├── wallpaper.ts              # Wallpaper domain types
-│   │   └── settings.ts               # Settings types
-│   └── styles/
-│       └── glassmorphism.css         # Glassmorphism utilities
+│   │   └── database.ts
+│   └── pages/
+│       ├── Dashboard.tsx
+│       ├── Category.tsx
+│       ├── SearchResults.tsx
+│       ├── Favorites.tsx
+│       ├── Collections.tsx
+│       ├── Analytics.tsx
+│       └── Settings.tsx
 ├── src-tauri/
-│   ├── src/
-│   │   ├── main.rs                   # Entry point
-│   │   ├── lib.rs                    # Tauri builder + plugin init + command registration
-│   │   ├── commands/
-│   │   │   ├── wallpaper.rs          # set_wallpaper, get_current_wallpaper
-│   │   │   ├── display.rs            # get_displays, set_wallpaper_for_display
-│   │   │   ├── cache.rs              # save_to_cache, read_from_cache, get_cache_size, clear_cache
-│   │   │   ├── rotation.rs           # schedule_rotation, cancel_rotation
-│   │   │   └── tray.rs               # System tray setup
-│   │   └── error.rs                  # Custom error types
+│   ├── Cargo.toml
+│   ├── Cargo.lock
+│   ├── build.rs
+│   ├── tauri.conf.json
 │   ├── capabilities/
-│   │   └── default.json              # Plugin permissions
+│   │   └── default.json
 │   ├── icons/
-│   │   ├── icon.icns                 # macOS
-│   │   ├── icon.ico                  # Windows
+│   │   ├── icon.icns
+│   │   ├── icon.ico
+│   │   ├── icon.png
 │   │   ├── 32x32.png
 │   │   ├── 128x128.png
 │   │   ├── 128x128@2x.png
-│   │   └── icon.png                  # Linux
-│   ├── Cargo.toml
-│   ├── tauri.conf.json               # App config, bundle, updater
-│   └── build.rs
+│   │   └── icon.svg
+│   └── src/
+│       ├── main.rs
+│       ├── lib.rs
+│       ├── error.rs
+│       └── commands/
+│           ├── mod.rs
+│           ├── wallpaper.rs
+│           ├── display.rs
+│           ├── cache.rs
+│           ├── rotation.rs
+│           └── tray.rs
 ├── supabase/
+│   ├── config.toml
 │   ├── migrations/
-│   │   ├── 001_create_tables.sql
-│   │   ├── 002_create_indexes.sql
-│   │   ├── 003_create_rls_policies.sql
-│   │   ├── 004_create_storage_bucket.sql
-│   │   └── 005_create_functions.sql
+│   │   ├── 001_create_categories.sql
+│   │   ├── 002_create_wallpapers.sql
+│   │   ├── 003_create_favorites.sql
+│   │   ├── 004_create_collections.sql
+│   │   ├── 005_create_collection_items.sql
+│   │   ├── 006_create_downloads_log.sql
+│   │   ├── 007_create_usage_stats.sql
+│   │   ├── 008_create_rls_policies.sql
+│   │   ├── 009_create_triggers.sql
+│   │   └── 010_create_indexes.sql
 │   ├── functions/
-│   │   ├── generate-thumbnails/
-│   │   │   └── index.ts
-│   │   ├── track-popular/
-│   │   │   └── index.ts
-│   │   └── sync-analytics/
-│   │       └── index.ts
-│   ├── seed.sql                      # 100+ wallpapers + 8 categories
-│   └── config.toml
-├── public/
-│   └── fonts/                        # Self-hosted Inter + Geist
-├── .env.example                      # VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
-├── .eslintrc.json
-├── .prettierrc
+│   │   ├── generate-thumbnails/index.ts
+│   │   ├── sync-analytics/index.ts
+│   │   ├── track-popular/index.ts
+│   │   └── curate-featured/index.ts
+│   └── seed.sql
+├── .env.example
 ├── .gitignore
-├── components.json                   # shadcn/ui config
-├── index.html
+├── .npmrc
+├── components.json
 ├── package.json
 ├── pnpm-lock.yaml
-├── postcss.config.js
-├── README.md
-├── LICENSE
-├── CONTRIBUTING.md
 ├── tsconfig.json
 ├── tsconfig.app.json
-├── tsconfig.node.json
 ├── vite.config.ts
-└── PLAN.md                           # This file
+├── PLAN.md
+├── README.md
+└── CONTRIBUTING.md
 ```
 
 ---
 
-## Dependency Graph
+## GitHub Secrets Required
 
-```
-Phase 1 (Scaffolding)
-├── Phase 2 (Design System)
-├── Phase 3 (Rust Backend)
-├── Phase 4 (Supabase Schema)
-│
-Phase 5 (Gallery & Grid) ← Phase 2 + 3 + 4
-├── Phase 6 (Favorites & Collections) ← Phase 4 + 5
-├── Phase 7 (Settings) ← Phase 3 + 4
-├── Phase 8 (Analytics) ← Phase 4 + 5
-├── Phase 9 (Auth & Sync) ← Phase 4
-│
-Phase 10 (CI/CD & Release) ← All phases
-```
-
-**Parallel execution opportunities:**
-- Phases 2, 3, 4 can run in parallel after Phase 1
-- Phases 6, 7, 8, 9 can run in parallel after Phase 5
-- Phase 10 needs all phases complete
+| Secret | Purpose | Required For |
+|--------|---------|-------------|
+| `GITHUB_TOKEN` | Auto-provided by GitHub | All builds |
+| `TAURI_SIGNING_PRIVATE_KEY` | Updater signing key | All builds |
+| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Key password (if set) | All builds |
+| `APPLE_CERTIFICATE` | Base64 .p12 certificate | macOS signing |
+| `APPLE_CERTIFICATE_PASSWORD` | .p12 export password | macOS signing |
+| `APPLE_SIGNING_IDENTITY` | Keychain identity name | macOS signing |
+| `APPLE_ID` | Apple ID email | macOS notarization |
+| `APPLE_PASSWORD` | App-specific password | macOS notarization |
+| `APPLE_TEAM_ID` | Apple Developer Team ID | macOS notarization |
+| `WINDOWS_CERTIFICATE` | Base64 .pfx certificate | Windows signing |
+| `WINDOWS_CERTIFICATE_PASSWORD` | .pfx export password | Windows signing |
+| `VITE_SUPABASE_URL` | Supabase project URL | Build time |
+| `VITE_SUPABASE_ANON_KEY` | Supabase anon key | Build time |
 
 ---
 
-## Quality Gates
-
-Each phase must pass before proceeding:
-
-| Phase | Quality Gate |
-|-------|-------------|
-| 1 | App renders in Tauri window, sidebar works, Supabase connected |
-| 2 | Theme toggle works, all motion primitives render correctly |
-| 3 | `set_wallpaper` works on current platform, all commands return data |
-| 4 | All tables created, RLS enforced, Edge Functions deploy, seed data loads |
-| 5 | Masonry grid renders 100+ wallpapers, search/filter work, preview opens |
-| 6 | Favorites toggle persists, collections CRUD works, drag-drop reorder works |
-| 7 | All settings persist across restart, auto-rotate works |
-| 8 | Charts render with real data, counters animate, streak tracks correctly |
-| 9 | Anonymous auth works, OAuth flow completes, sync recovers after offline |
-| 10 | Builds succeed on all 3 platforms, code signed, auto-update works |
-
----
-
-## Risk Mitigation
-
-| Risk | Mitigation |
-|------|-----------|
-| macOS wallpaper API requires main thread | Use `app.run_on_main_thread()` for NSWorkspace calls |
-| Multi-monitor has no Tauri-native API | Platform-specific Rust: NSScreen (macOS), EnumDisplayDevices (Windows), xrandr (Linux) |
-| Linux DE fragmentation for wallpaper | Cascade: gsettings (GNOME) → feh (universal) → nitrogen (fallback) |
-| Large image gallery performance | Virtual scrolling, lazy loading, WebP thumbnails, aggressive caching |
-| Offline-first sync conflicts | Server-timestamp wins, optimistic updates with rollback |
-| macOS code signing cost | Requires Apple Developer account ($99/year) — use ad-hoc signing for development |
-| Windows code signing cost | Optional — unsigned builds work but trigger SmartScreen warning |
-
----
-
-## Environment Variables Required
+## Supabase Environment Variables
 
 ```env
-# Supabase (frontend)
+# .env (local development — never commit)
 VITE_SUPABASE_URL=https://rfvsnpeafnehgoceavmz.supabase.co
-VITE_SUPABASE_ANON_KEY=<from-supabase-dashboard>
+VITE_SUPABASE_ANON_KEY=<your-anon-key>
 
-# macOS Code Signing (CI only)
-APPLE_CERTIFICATE=<base64-encoded-p12>
-APPLE_CERTIFICATE_PASSWORD=<password>
-APPLE_SIGNING_IDENTITY=<Developer ID Application: ...>
-APPLE_ID=<apple-id-email>
-APPLE_PASSWORD=<app-specific-password>
-APPLE_TEAM_ID=<team-id>
-
-# Windows Code Signing (CI only)
-WINDOWS_CERTIFICATE=<base64-encoded-pfx>
-WINDOWS_CERTIFICATE_PASSWORD=<password>
-
-# Tauri Updater (CI only)
-TAURI_SIGNING_PRIVATE_KEY=<signing-key>
-TAURI_SIGNING_PRIVATE_KEY_PASSWORD=<password>
-
-# Tavily Search (development)
-TAVILY_API_KEY=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
+# Tauri signing (local only)
+TAURI_SIGNING_PRIVATE_KEY=<generated-private-key>
+TAURI_SIGNING_PRIVATE_KEY_PASSWORD=<password-if-any>
 ```
 
 ---
 
-## Next Steps
+## Acceptance Criteria
 
-1. Execute Phase 1: Scaffold project with `pnpm create tauri-app`
-2. Each phase will be executed as a dedicated development session
-3. Commit after each phase with descriptive messages
-4. Tag release candidates as `v0.1.0-rc.1`, `v0.2.0-rc.1`, etc.
-5. Final release: `v1.0.0` with GitHub Release + auto-update
+### Must Pass Before Release
+
+- [ ] `pnpm tauri dev` launches on macOS, Windows, Linux without errors
+- [ ] `pnpm tauri build` produces DMG (macOS), EXE+MSI (Windows), AppImage+DEB+RPM (Linux)
+- [ ] Wallpapers load from Supabase with masonry grid, infinite scroll
+- [ ] Search with debounce returns results within 300ms
+- [ ] Category tabs with glide indicator work
+- [ ] Filter panel (resolution, orientation, color, sort) composes correctly
+- [ ] Click "Set Wallpaper" changes actual desktop wallpaper on all 3 platforms
+- [ ] Multi-monitor wallpaper setting works (detect displays, set per-monitor)
+- [ ] Favorites toggle with spring animation, persists to Supabase
+- [ ] Collections CRUD (create, rename, delete) works
+- [ ] Drag-drop reorder within collections persists
+- [ ] Auto-rotate wallpaper on configurable interval works
+- [ ] Time-of-day rotation (morning/afternoon/evening/night) works
+- [ ] System tray shows icon, context menu works, minimize-to-tray works
+- [ ] Global hotkeys (next wallpaper, toggle rotation, toggle favorite) work
+- [ ] Dark/light mode toggle with smooth transition
+- [ ] All animations run at 60fps (verified with DevTools Performance tab)
+- [ ] `useReducedMotion()` disables all animations when OS setting enabled
+- [ ] Anonymous auth works on first launch
+- [ ] Email/password signup and login works
+- [ ] OAuth (Google, GitHub) opens system browser and completes flow
+- [ ] Cross-device sync: favorites and collections merge correctly
+- [ ] Offline mode: all features work without internet (SQLite cache)
+- [ ] Offline queue: mutations push to Supabase when reconnected
+- [ ] Analytics dashboard: animated counters, charts with progressive reveal
+- [ ] Settings: all toggles and selectors persist to `tauri-plugin-store`
+- [ ] Auto-updater detects new version and prompts to install
+- [ ] CI workflow passes on all 3 platforms
+- [ ] Release workflow builds and uploads all artifacts to GitHub Releases
+- [ ] No TypeScript errors (`tsc --noEmit` passes)
+- [ ] No console errors in production build
+- [ ] App icon displays correctly on all platforms
+- [ ] README.md with install instructions and screenshots
+
+---
+
+## Development Timeline
+
+| Chunk | Duration | Cumulative | Dependencies |
+|-------|----------|-----------|--------------|
+| 1. Project Foundation | 2h | 2h | None |
+| 2. Database & Supabase | 2h | 4h | Chunk 1 |
+| 3. Rust Backend | 2h | 6h | Chunk 1 |
+| 4. UI Foundation | 2h | 8h | Chunk 1 |
+| 5. Wallpaper Grid | 2h | 10h | Chunks 2, 3, 4 |
+| 6. Search & Filters | 2h | 12h | Chunk 5 |
+| 7. Favorites & Offline | 2h | 14h | Chunks 2, 5 |
+| 8. Settings & Tray | 2h | 16h | Chunks 3, 4 |
+| 9. Analytics & Auth | 2h | 18h | Chunks 2, 4, 7 |
+| 10. CI/CD & Release | 2h | 20h | All previous |
+
+> **Note:** Chunks 2, 3, and 4 can be developed in parallel after Chunk 1 completes. Chunks 5-10 have sequential dependencies as shown.
+
+---
+
+*Last updated: 2026-05-29 | Plan version: 1.0.0*
