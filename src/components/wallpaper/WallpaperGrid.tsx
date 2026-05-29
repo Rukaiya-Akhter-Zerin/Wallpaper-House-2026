@@ -24,6 +24,7 @@ interface WallpaperGridProps {
   onPreview: (wallpaper: Wallpaper) => void;
   onFavorite?: (wallpaper: Wallpaper) => void;
   onDownload?: (wallpaper: Wallpaper) => void;
+  onSetWallpaper?: (wallpaper: Wallpaper) => void;
   favorites?: Set<number>;
 }
 

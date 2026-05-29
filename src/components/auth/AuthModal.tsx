@@ -64,13 +64,24 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
     onClose();
   };
 
+  const [googleError, setGoogleError] = useState("");
+
   const handleGoogleSignIn = async () => {
     setError("");
+    setGoogleError("");
     setLoading(true);
     try {
-      await signInWithOAuth("google");
+      const result = await signInWithOAuth("google");
+      if (result?.error) {
+        const msg = result.error;
+        if (msg.includes("not enabled") || msg.includes("Unsupported provider")) {
+          setGoogleError("Google sign-in is not configured yet. Please use email/password or continue as guest.");
+        } else {
+          setGoogleError(msg);
+        }
+      }
     } catch (err: any) {
-      setError(err.message || "Google sign-in failed");
+      setGoogleError(err?.message || "Google sign-in failed. Try email instead.");
     } finally {
       setLoading(false);
     }
@@ -175,6 +186,11 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
               <GoogleIcon />
               Continue with Google
             </Button>
+            {googleError && (
+              <p className="mt-2 rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-600 dark:text-amber-400">
+                {googleError}
+              </p>
+            )}
 
             {/* Divider */}
             <div className="relative my-6">

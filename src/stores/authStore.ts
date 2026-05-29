@@ -11,7 +11,7 @@ interface AuthState {
   signInAnonymously: () => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<{ error?: string }>;
   signUpWithEmail: (email: string, password: string) => Promise<{ error?: string }>;
-  signInWithOAuth: (provider: "google" | "github") => Promise<void>;
+  signInWithOAuth: (provider: "google" | "github") => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
   loadSession: () => Promise<void>;
 }
@@ -58,7 +58,9 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   signInWithOAuth: async (provider) => {
-    await supabase.auth.signInWithOAuth({ provider });
+    const { error } = await supabase.auth.signInWithOAuth({ provider });
+    if (error) return { error: error.message };
+    return {};
   },
 
   signOut: async () => {

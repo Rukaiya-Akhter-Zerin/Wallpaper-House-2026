@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { motion } from "motion/react";
-import { Heart, Download, Eye } from "lucide-react";
+import { Heart, Download, Eye, Monitor } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,7 @@ interface WallpaperCardProps {
   onPreview: (wallpaper: Wallpaper) => void;
   onFavorite?: (wallpaper: Wallpaper) => void;
   onDownload?: (wallpaper: Wallpaper) => void;
+  onSetWallpaper?: (wallpaper: Wallpaper) => void;
   isFavorited?: boolean;
   index?: number;
 }
@@ -21,6 +22,7 @@ export function WallpaperCard({
   onPreview,
   onFavorite,
   onDownload,
+  onSetWallpaper,
   isFavorited = false,
 }: WallpaperCardProps) {
   const [loaded, setLoaded] = useState(false);
@@ -97,6 +99,15 @@ export function WallpaperCard({
             className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-md hover:bg-white/30"
           >
             <Download className="h-4 w-4" />
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={(e) => { e.stopPropagation(); onSetWallpaper?.(wallpaper); }}
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-500/90 text-white backdrop-blur-md hover:bg-blue-600/90"
+            title="Set as Desktop Wallpaper"
+          >
+            <Monitor className="h-4 w-4" />
           </motion.button>
         </div>
 
