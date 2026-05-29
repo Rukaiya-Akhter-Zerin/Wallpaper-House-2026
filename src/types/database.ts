@@ -18,10 +18,12 @@ export interface Database {
           color: string | null;
           description: string | null;
           wallpaper_count: number;
+          sort_order: number;
           created_at: string;
         };
-        Insert: Omit<Database["public"]["Tables"]["categories"]["Row"], "id" | "created_at">;
+        Insert: Omit<Database["public"]["Tables"]["categories"]["Row"], "id" | "created_at" | "wallpaper_count">;
         Update: Partial<Database["public"]["Tables"]["categories"]["Insert"]>;
+        Relationships: [];
       };
       wallpapers: {
         Row: {
@@ -51,11 +53,17 @@ export interface Database {
           created_at: string;
           updated_at: string;
         };
-        Insert: Omit<
-          Database["public"]["Tables"]["wallpapers"]["Row"],
-          "id" | "created_at" | "updated_at"
-        >;
+        Insert: Omit<Database["public"]["Tables"]["wallpapers"]["Row"], "id" | "created_at" | "updated_at" | "downloads_count" | "likes_count" | "is_featured" | "is_active">;
         Update: Partial<Database["public"]["Tables"]["wallpapers"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "wallpapers_category_id_fkey";
+            columns: ["category_id"];
+            isOneToOne: false;
+            referencedRelation: "categories";
+            referencedColumns: ["id"];
+          }
+        ];
       };
       favorites: {
         Row: {
@@ -66,6 +74,22 @@ export interface Database {
         };
         Insert: Omit<Database["public"]["Tables"]["favorites"]["Row"], "id" | "created_at">;
         Update: Partial<Database["public"]["Tables"]["favorites"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "favorites_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "favorites_wallpaper_id_fkey";
+            columns: ["wallpaper_id"];
+            isOneToOne: false;
+            referencedRelation: "wallpapers";
+            referencedColumns: ["id"];
+          }
+        ];
       };
       collections: {
         Row: {
@@ -79,11 +103,17 @@ export interface Database {
           created_at: string;
           updated_at: string;
         };
-        Insert: Omit<
-          Database["public"]["Tables"]["collections"]["Row"],
-          "id" | "created_at" | "updated_at"
-        >;
+        Insert: Omit<Database["public"]["Tables"]["collections"]["Row"], "id" | "created_at" | "updated_at" | "wallpaper_count" | "cover_url"> & { cover_url?: string | null };
         Update: Partial<Database["public"]["Tables"]["collections"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "collections_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          }
+        ];
       };
       collection_items: {
         Row: {
@@ -93,11 +123,24 @@ export interface Database {
           order_index: number;
           added_at: string;
         };
-        Insert: Omit<
-          Database["public"]["Tables"]["collection_items"]["Row"],
-          "id" | "added_at"
-        >;
+        Insert: Omit<Database["public"]["Tables"]["collection_items"]["Row"], "id" | "added_at">;
         Update: Partial<Database["public"]["Tables"]["collection_items"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "collection_items_collection_id_fkey";
+            columns: ["collection_id"];
+            isOneToOne: false;
+            referencedRelation: "collections";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "collection_items_wallpaper_id_fkey";
+            columns: ["wallpaper_id"];
+            isOneToOne: false;
+            referencedRelation: "wallpapers";
+            referencedColumns: ["id"];
+          }
+        ];
       };
       downloads_log: {
         Row: {
@@ -108,11 +151,17 @@ export interface Database {
           resolution: string | null;
           downloaded_at: string;
         };
-        Insert: Omit<
-          Database["public"]["Tables"]["downloads_log"]["Row"],
-          "id" | "downloaded_at"
-        >;
+        Insert: Omit<Database["public"]["Tables"]["downloads_log"]["Row"], "id" | "downloaded_at">;
         Update: Partial<Database["public"]["Tables"]["downloads_log"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "downloads_log_wallpaper_id_fkey";
+            columns: ["wallpaper_id"];
+            isOneToOne: false;
+            referencedRelation: "wallpapers";
+            referencedColumns: ["id"];
+          }
+        ];
       };
       usage_stats: {
         Row: {
@@ -126,11 +175,21 @@ export interface Database {
         };
         Insert: Omit<Database["public"]["Tables"]["usage_stats"]["Row"], "id">;
         Update: Partial<Database["public"]["Tables"]["usage_stats"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "usage_stats_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          }
+        ];
       };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
     Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
   };
 }
 

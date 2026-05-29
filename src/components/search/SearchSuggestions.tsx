@@ -2,7 +2,16 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Clock, X, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getRecentSearches, clearRecentSearches, removeRecentSearch } from "@/hooks/useSearch";
+
+const RECENT_KEY = "wh-search-recent";
+
+function getRecent(): string[] {
+  try { return JSON.parse(localStorage.getItem(RECENT_KEY) || "[]"); } catch { return []; }
+}
+function clearAll() { localStorage.removeItem(RECENT_KEY); }
+function removeOne(q: string) {
+  localStorage.setItem(RECENT_KEY, JSON.stringify(getRecent().filter((s) => s !== q)));
+}
 
 interface SearchSuggestionsProps {
   visible: boolean;
@@ -14,9 +23,7 @@ export function SearchSuggestions({ visible, onSelect, className }: SearchSugges
   const [searches, setSearches] = useState<string[]>([]);
 
   useEffect(() => {
-    if (visible) {
-      setSearches(getRecentSearches());
-    }
+    if (visible) setSearches(getRecent());
   }, [visible]);
 
   if (!visible || searches.length === 0) return null;
@@ -36,10 +43,7 @@ export function SearchSuggestions({ visible, onSelect, className }: SearchSugges
         <div className="flex items-center justify-between px-3 py-2">
           <span className="text-xs font-medium text-muted-foreground">Recent searches</span>
           <button
-            onClick={() => {
-              clearRecentSearches();
-              setSearches([]);
-            }}
+            onClick={() => { clearAll(); setSearches([]); }}
             className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
           >
             <Trash2 className="h-3 w-3" />
@@ -61,8 +65,8 @@ export function SearchSuggestions({ visible, onSelect, className }: SearchSugges
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  removeRecentSearch(term);
-                  setSearches(getRecentSearches());
+                  removeOne(term);
+                  setSearches(getRecent());
                 }}
                 className="hidden rounded p-0.5 hover:bg-background group-hover:block"
               >

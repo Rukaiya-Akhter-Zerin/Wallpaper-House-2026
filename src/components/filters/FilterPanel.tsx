@@ -1,112 +1,53 @@
-import { motion, AnimatePresence } from "motion/react";
-import { X, SlidersHorizontal, ArrowUpDown } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { motion } from "motion/react";
+import { X, SlidersHorizontal } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useFilters, type Resolution, type Orientation, type SortOption } from "@/hooks/useFilters";
+import { cn } from "@/lib/utils";
+import { useFiltersStore, type SortOption, type Orientation } from "@/stores/filtersStore";
 
-const RESOLUTIONS: Resolution[] = ["4K", "2K", "1080p", "ultrawide"];
-const ORIENTATIONS: Orientation[] = ["portrait", "landscape", "square"];
-const SORT_OPTIONS: { value: SortOption; label: string }[] = [
-  { value: "popular", label: "Popular" },
+const RESOLUTIONS = ["4K", "2K", "1080p", "Ultrawide"];
+const ORIENTATIONS: Orientation[] = ["landscape", "portrait", "square"];
+const SORTS: { value: SortOption; label: string }[] = [
   { value: "newest", label: "Newest" },
+  { value: "popular", label: "Popular" },
   { value: "trending", label: "Trending" },
   { value: "downloads", label: "Most Downloaded" },
 ];
 
-interface FilterPanelProps {
-  className?: string;
-}
-
-export function FilterPanel({ className }: FilterPanelProps) {
-  const {
-    resolutions,
-    orientations,
-    sort,
-    toggleResolution,
-    toggleOrientation,
-    setSort,
-    clearFilters,
-    hasActiveFilters,
-  } = useFilters();
+export function FilterPanel({ className }: { className?: string }) {
+  const { resolution, orientation, sort, setResolution, setOrientation, setSort, clearFilters, hasActiveFilters } = useFiltersStore();
 
   return (
-    <div className={cn("flex flex-wrap items-center gap-2", className)}>
-      <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-        <SlidersHorizontal className="h-4 w-4" />
-        <span className="hidden sm:inline">Filters</span>
-      </div>
-
-      {/* Resolution badges */}
-      <div className="flex items-center gap-1.5">
+    <div className={cn("space-y-3", className)}>
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-1.5 text-sm text-muted-foreground"><SlidersHorizontal className="h-4 w-4" />Resolution:</div>
         {RESOLUTIONS.map((r) => (
-          <Badge
-            key={r}
-            variant={resolutions.includes(r) ? "default" : "outline"}
-            className="cursor-pointer select-none transition-colors hover:bg-primary/80"
-            onClick={() => toggleResolution(r)}
-          >
-            {r}
-          </Badge>
+          <motion.button key={r} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => setResolution(resolution === r ? null : r)}>
+            <Badge variant={resolution === r ? "default" : "outline"} className="cursor-pointer">{r}</Badge>
+          </motion.button>
         ))}
       </div>
-
-      <div className="h-5 w-px bg-border" />
-
-      {/* Orientation badges */}
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-1.5 text-sm text-muted-foreground"><SlidersHorizontal className="h-4 w-4" />Orientation:</div>
         {ORIENTATIONS.map((o) => (
-          <Badge
-            key={o}
-            variant={orientations.includes(o) ? "default" : "outline"}
-            className="cursor-pointer select-none capitalize transition-colors hover:bg-primary/80"
-            onClick={() => toggleOrientation(o)}
-          >
-            {o}
-          </Badge>
+          <motion.button key={o} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => setOrientation(orientation === o ? null : o)}>
+            <Badge variant={orientation === o ? "default" : "outline"} className="cursor-pointer capitalize">{o}</Badge>
+          </motion.button>
         ))}
       </div>
-
-      <div className="h-5 w-px bg-border" />
-
-      {/* Sort dropdown */}
-      <div className="relative">
-        <select
-          value={sort}
-          onChange={(e) => setSort(e.target.value as SortOption)}
-          className="appearance-none rounded-md border border-border bg-card px-3 py-1.5 pr-8 text-sm capitalize outline-none focus:ring-1 focus:ring-ring"
-        >
-          {SORT_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
-        <ArrowUpDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-1.5 text-sm text-muted-foreground"><SlidersHorizontal className="h-4 w-4" />Sort:</div>
+        {SORTS.map((s) => (
+          <motion.button key={s.value} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => setSort(s.value)}>
+            <Badge variant={sort === s.value ? "default" : "outline"} className="cursor-pointer">{s.label}</Badge>
+          </motion.button>
+        ))}
       </div>
-
-      {/* Active filters & clear */}
-      <AnimatePresence>
-        {hasActiveFilters() && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            className="flex items-center gap-1.5"
-          >
-            <div className="h-5 w-px bg-border" />
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={clearFilters}
-              className="h-7 gap-1 text-xs text-muted-foreground hover:text-foreground"
-            >
-              <X className="h-3 w-3" />
-              Clear all
-            </Button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {hasActiveFilters() && (
+        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}>
+          <Button variant="ghost" size="sm" onClick={clearFilters} className="text-xs text-muted-foreground"><X className="mr-1 h-3 w-3" />Clear all filters</Button>
+        </motion.div>
+      )}
     </div>
   );
 }
