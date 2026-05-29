@@ -173,7 +173,7 @@ export const useCollectionsStore = create<CollectionsState>((set, get) => ({
       const updates = items.map((item) =>
         supabase
           .from("collection_items")
-          .update({ order_index: item.order_index })
+          .update({ order_index: item.order_index } as any)
           .eq("collection_id", collectionId)
           .eq("wallpaper_id", item.wallpaper_id)
       );
