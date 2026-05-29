@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { motion } from "motion/react";
 import { invoke } from "@tauri-apps/api/core";
-import { Search, X, SlidersHorizontal, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, X, SlidersHorizontal, ChevronLeft, ChevronRight, Heart, Monitor } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -110,10 +110,19 @@ export function Dashboard() {
           </div>
           <div ref={scrollRef} className="flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: "none" }}>
             {featured.map((wp) => (
-              <motion.div key={wp.id} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={() => setPreviewWallpaper(wp)} className="relative h-40 w-64 flex-shrink-0 cursor-pointer overflow-hidden rounded-xl">
-                <img src={wp.thumbnail_url_medium ?? wp.image_url} alt={wp.title} className="h-full w-full object-cover" loading="lazy" />
+              <motion.div key={wp.id} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} className="group relative h-40 w-64 flex-shrink-0 cursor-pointer overflow-hidden rounded-xl">
+                <img src={wp.thumbnail_url_medium ?? wp.image_url} alt={wp.title} onClick={() => setPreviewWallpaper(wp)} className="h-full w-full object-cover" loading="lazy" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                 <p className="absolute bottom-2 left-3 text-sm font-medium text-white">{wp.title}</p>
+                {/* Action buttons on hover */}
+                <div className="absolute right-2 top-2 flex gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+                  <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={(e) => { e.stopPropagation(); handleFavorite(wp); }} className={cn("flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-md", isFavorited(wp.id) ? "bg-red-500/90 text-white" : "bg-white/20 text-white hover:bg-white/30")}>
+                    <Heart className={cn("h-4 w-4", isFavorited(wp.id) && "fill-white")} />
+                  </motion.button>
+                  <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={(e) => { e.stopPropagation(); handleSetWallpaper(wp); }} className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-500/90 text-white backdrop-blur-md hover:bg-blue-600/90" title="Set as Wallpaper">
+                    <Monitor className="h-4 w-4" />
+                  </motion.button>
+                </div>
               </motion.div>
             ))}
           </div>
