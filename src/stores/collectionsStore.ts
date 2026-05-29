@@ -95,7 +95,7 @@ export const useCollectionsStore = create<CollectionsState>((set, get) => ({
 
   updateCollection: async (id, updates) => {
     try {
-      await supabase.from("collections").update(updates).eq("id", id);
+      await supabase.from("collections").update(updates as any).eq("id", id);
       set((s) => ({
         collections: s.collections.map((c) =>
           c.id === id ? { ...c, ...updates } : c
