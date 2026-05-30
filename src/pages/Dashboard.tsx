@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { motion } from "motion/react";
 import { invoke } from "@tauri-apps/api/core";
-import { Search, X, SlidersHorizontal, ChevronLeft, ChevronRight, Heart, Monitor } from "lucide-react";
+import { Search, X, SlidersHorizontal, ChevronLeft, ChevronRight, Heart, Download, Monitor } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -79,6 +79,7 @@ export function Dashboard() {
       // Download + cache + set all in Rust (avoids slow IPC byte transfer)
       const cachePath = await invoke<string>("download_and_cache", { url: wallpaper.image_url });
       await invoke("set_wallpaper", { path: cachePath });
+      console.log("Wallpaper set successfully:", wallpaper.title);
     } catch (err) {
       console.error("Failed to set wallpaper:", err);
     } finally {
@@ -86,14 +87,66 @@ export function Dashboard() {
     }
   }, [settingWallpaper]);
 
+  const handleDownload = useCallback(async (wallpaper: Wallpaper) => {
+    try {
+      const cachePath = await invoke<string>("download_and_cache", { url: wallpaper.image_url });
+      console.log("Downloaded to:", cachePath);
+    } catch (err) {
+      console.error("Failed to download wallpaper:", err);
+    }
+  }, []);
+
   const handleFavorite = useCallback((wallpaper: Wallpaper) => {
     toggleFavorite(wallpaper.id);
   }, [toggleFavorite]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const autoScrollRef = useRef<number>();
+  const [autoScrollPaused, setAutoScrollPaused] = useState(false);
+
+  // Triple featured array for seamless infinite loop
+  const tripledFeatured = useMemo(() => {
+    if (!featured || featured.length === 0) return [];
+    return [...featured, ...featured, ...featured];
+  }, [featured]);
+
+  // On mount, scroll to the middle set
+  useEffect(() => {
+    if (scrollRef.current && featured && featured.length > 0) {
+      const cardWidth = 320 + 12; // w-80 + gap-3 (12px)
+      scrollRef.current.scrollLeft = featured.length * cardWidth;
+    }
+  }, [featured]);
+
+  // Auto-scroll animation
+  useEffect(() => {
+    if (autoScrollPaused || !featured || featured.length === 0) return;
+
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const cardWidth = 320 + 12;
+    const middleEnd = featured.length * 2 * cardWidth;
+    const middleStart = featured.length * cardWidth;
+
+    const animate = () => {
+      el.scrollLeft += 0.5;
+      if (el.scrollLeft >= middleEnd) {
+        el.scrollLeft = middleStart;
+      }
+      autoScrollRef.current = requestAnimationFrame(animate);
+    };
+
+    autoScrollRef.current = requestAnimationFrame(animate);
+    return () => {
+      if (autoScrollRef.current) cancelAnimationFrame(autoScrollRef.current);
+    };
+  }, [autoScrollPaused, featured]);
+
   const scrollFeatured = (dir: "left" | "right") => {
     if (!scrollRef.current) return;
-    scrollRef.current.scrollBy({ left: dir === "left" ? -400 : 400, behavior: "smooth" });
+    const cardWidth = 320 + 12;
+    scrollRef.current.scrollBy({ left: dir === "left" ? -cardWidth : cardWidth, behavior: "smooth" });
   };
 
   return (
@@ -104,14 +157,14 @@ export function Dashboard() {
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-lg font-semibold tracking-tight">Featured</h2>
             <div className="flex gap-1">
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => scrollFeatured("left")}><ChevronLeft className="h-4 w-4" /></Button>
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => scrollFeatured("right")}><ChevronRight className="h-4 w-4" /></Button>
+              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full backdrop-blur-md bg-white/10 border border-white/20 hover:bg-white/20" onClick={() => scrollFeatured("left")}><ChevronLeft className="h-4 w-4" /></Button>
+              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full backdrop-blur-md bg-white/10 border border-white/20 hover:bg-white/20" onClick={() => scrollFeatured("right")}><ChevronRight className="h-4 w-4" /></Button>
             </div>
           </div>
-          <div ref={scrollRef} className="flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: "none" }}>
-            {featured.map((wp) => (
-              <motion.div key={wp.id} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} className="group relative h-40 w-64 flex-shrink-0 cursor-pointer overflow-hidden rounded-xl">
-                <img src={wp.thumbnail_url_medium ?? wp.image_url} alt={wp.title} onClick={() => setPreviewWallpaper(wp)} className="h-full w-full object-cover" loading="lazy" />
+          <div ref={scrollRef} className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide" style={{ scrollbarWidth: "none" }} onMouseEnter={() => setAutoScrollPaused(true)} onMouseLeave={() => setAutoScrollPaused(false)}>
+            {tripledFeatured.map((wp, idx) => (
+              <div key={`${wp.id}-${idx}`} onClick={() => setPreviewWallpaper(wp)} className="group relative h-56 w-80 flex-shrink-0 cursor-pointer overflow-hidden rounded-xl">
+                <img src={wp.thumbnail_url_medium ?? wp.image_url} alt={wp.title} className="h-full w-full object-cover wallpaper-card-img" loading="lazy" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                 <p className="absolute bottom-2 left-3 text-sm font-medium text-white">{wp.title}</p>
                 {/* Action buttons on hover */}
@@ -119,11 +172,14 @@ export function Dashboard() {
                   <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={(e) => { e.stopPropagation(); handleFavorite(wp); }} className={cn("flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-md", isFavorited(wp.id) ? "bg-red-500/90 text-white" : "bg-white/20 text-white hover:bg-white/30")}>
                     <Heart className={cn("h-4 w-4", isFavorited(wp.id) && "fill-white")} />
                   </motion.button>
+                  <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={(e) => { e.stopPropagation(); handleDownload(wp); }} className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-md hover:bg-white/30" title="Download">
+                    <Download className="h-4 w-4" />
+                  </motion.button>
                   <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={(e) => { e.stopPropagation(); handleSetWallpaper(wp); }} className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-500/90 text-white backdrop-blur-md hover:bg-blue-600/90" title="Set as Wallpaper">
                     <Monitor className="h-4 w-4" />
                   </motion.button>
                 </div>
-              </motion.div>
+              </div>
             ))}
           </div>
         </motion.div>
@@ -172,7 +228,7 @@ export function Dashboard() {
 
       {/* Masonry grid */}
       <motion.div variants={fadeInUp} className="flex-1">
-        <WallpaperGrid wallpapers={wallpapers} isLoading={isLoading} isFetchingNextPage={isFetchingNextPage} hasNextPage={hasNextPage} fetchNextPage={fetchNextPage} onPreview={setPreviewWallpaper} onFavorite={handleFavorite} onSetWallpaper={handleSetWallpaper} favorites={favoriteIds} />
+        <WallpaperGrid wallpapers={wallpapers} isLoading={isLoading} isFetchingNextPage={isFetchingNextPage} hasNextPage={hasNextPage} fetchNextPage={fetchNextPage} onPreview={setPreviewWallpaper} onFavorite={handleFavorite} onDownload={handleDownload} onSetWallpaper={handleSetWallpaper} favorites={favoriteIds} />
       </motion.div>
 
       {/* Preview modal with all actions connected */}
