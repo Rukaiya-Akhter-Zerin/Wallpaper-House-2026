@@ -23,15 +23,17 @@ interface NavItem {
   id: ViewName;
   label: string;
   icon: React.ElementType;
+  color: string;
+  glow: string;
 }
 
 const navItems: NavItem[] = [
-  { id: "dashboard", label: "Gallery", icon: LayoutDashboard },
-  { id: "categories", label: "Categories", icon: Grid3X3 },
-  { id: "favorites", label: "Favorites", icon: Heart },
-  { id: "collections", label: "Collections", icon: FolderOpen },
-  { id: "analytics", label: "Analytics", icon: BarChart3 },
-  { id: "settings", label: "Settings", icon: Settings },
+  { id: "dashboard", label: "Gallery", icon: LayoutDashboard, color: "text-violet-400", glow: "drop-shadow-[0_0_6px_rgba(167,139,250,0.7)]" },
+  { id: "categories", label: "Categories", icon: Grid3X3, color: "text-sky-400", glow: "drop-shadow-[0_0_6px_rgba(56,189,248,0.7)]" },
+  { id: "favorites", label: "Favorites", icon: Heart, color: "text-rose-400", glow: "drop-shadow-[0_0_6px_rgba(251,113,133,0.7)]" },
+  { id: "collections", label: "Collections", icon: FolderOpen, color: "text-amber-400", glow: "drop-shadow-[0_0_6px_rgba(251,191,36,0.7)]" },
+  { id: "analytics", label: "Analytics", icon: BarChart3, color: "text-emerald-400", glow: "drop-shadow-[0_0_6px_rgba(52,211,153,0.7)]" },
+  { id: "settings", label: "Settings", icon: Settings, color: "text-slate-400", glow: "drop-shadow-[0_0_6px_rgba(148,163,184,0.5)]" },
 ];
 
 interface SidebarProps {
@@ -70,7 +72,7 @@ export function Sidebar({ theme, setTheme, resolvedTheme }: SidebarProps) {
               className={cn(
                 "relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                 isActive
-                  ? "text-primary"
+                  ? "bg-primary/10"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
             >
@@ -81,13 +83,13 @@ export function Sidebar({ theme, setTheme, resolvedTheme }: SidebarProps) {
                   transition={{ type: "spring", stiffness: 350, damping: 30 }}
                 />
               )}
-              <item.icon className="relative z-10 h-[18px] w-[18px] shrink-0" />
+              <item.icon className={cn("relative z-10 h-[18px] w-[18px] shrink-0", item.color, item.glow)} />
               {!sidebarCollapsed && (
                 <motion.span
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="relative z-10 truncate"
+                  className={cn("relative z-10 truncate", isActive ? item.color : "")}
                 >
                   {item.label}
                 </motion.span>

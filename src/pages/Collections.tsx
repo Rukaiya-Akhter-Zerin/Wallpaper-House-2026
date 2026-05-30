@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { fadeInUp, staggerContainer } from "@/lib/motion";
 import { FolderOpen, Plus } from "lucide-react";
@@ -20,11 +20,15 @@ export function Collections() {
   const selectedCollection = collections.find((c) => c.id === selectedCollectionId) || null;
   const { data: collectionWallpapers = [] } = useCollectionWallpapers(selectedCollectionId);
 
-  const existingWallpaperIds = new Set(collectionWallpapers.map((w) => w.id));
+  const existingWallpaperIds = useMemo(
+    () => new Set(collectionWallpapers.map((w) => w.id)),
+    [collectionWallpapers]
+  );
 
   const handleAddFromGallery = (wallpaper: Wallpaper) => {
     if (!selectedCollectionId) return;
     addToCol.mutate({ collectionId: selectedCollectionId, wallpaperId: wallpaper.id });
+    setShowGalleryPicker(false);
   };
 
   const handleCreate = async (name: string, description: string, isPublic: boolean) => {
@@ -48,7 +52,7 @@ export function Collections() {
 
       <AnimatePresence mode="wait">
         {selectedCollection && selectedCollectionId !== null ? (
-          <motion.div key="detail" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.2 }} className="flex-1">
+          <motion.div key="detail" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.2 }} className="flex-1 overflow-y-auto">
             <CollectionDetail
               collection={selectedCollection}
               wallpapers={collectionWallpapers}
@@ -66,7 +70,14 @@ export function Collections() {
       </AnimatePresence>
 
       <CreateCollectionDialog open={showCreate} onClose={() => setShowCreate(false)} onCreate={handleCreate} />
-      <GalleryPickerModal open={showGalleryPicker} onClose={() => setShowGalleryPicker(false)} onSelect={handleAddFromGallery} existingIds={existingWallpaperIds} />
+      {selectedCollectionId && (
+        <GalleryPickerModal
+          open={showGalleryPicker}
+          onClose={() => setShowGalleryPicker(false)}
+          onSelect={handleAddFromGallery}
+          existingIds={existingWallpaperIds}
+        />
+      )}
     </motion.div>
   );
 }

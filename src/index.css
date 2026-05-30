@@ -296,8 +296,8 @@ body {
    ============================================ */
 
 .wallpaper-card-img {
-  transform: scale(1.07);
-  transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  transform: scale(1.6);
+  transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .group:hover .wallpaper-card-img {
@@ -326,8 +326,8 @@ body {
    ============================================ */
 
 .card-zoom-img {
-  transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-  transform: scale(1.07);
+  transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  transform: scale(1.6);
 }
 
 .group:hover .card-zoom-img {

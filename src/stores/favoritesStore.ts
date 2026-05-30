@@ -78,13 +78,9 @@ export const useFavoritesStore = create<FavoritesState>((set, get) => ({
           } as any);
         }
       }
-    } catch {
-      // Revert on failure
-      const revertIds = new Set(get().favoriteIds);
-      if (wasFavorited) revertIds.add(wallpaperId);
-      else revertIds.delete(wallpaperId);
-      saveToLocalStorage(revertIds);
-      set({ favoriteIds: revertIds });
+    } catch (err) {
+      // Keep local change even if Supabase sync fails (offline, no table, etc.)
+      console.warn("Favorite sync failed (kept locally):", err);
     }
   },
 

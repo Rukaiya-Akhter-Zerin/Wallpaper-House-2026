@@ -1,12 +1,14 @@
-import { useState, useCallback, useMemo, useRef } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { motion } from "motion/react";
 import { ArrowLeft, Edit3, Globe, Lock, Upload, Images, HardDrive } from "lucide-react";
+import { open } from "@tauri-apps/plugin-dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { WallpaperGrid } from "@/components/wallpaper/WallpaperGrid";
-import { useLocalImagesStore, type LocalImage } from "@/stores/localImagesStore";
+import { LocalImageCard } from "@/components/collections/LocalImageCard";
+import { useLocalImagesStore } from "@/stores/localImagesStore";
 import type { Wallpaper, Collection } from "@/types/database";
 
 export function CollectionDetail({ collection, wallpapers, onBack, onPreview, onFavorite, onRemove, onUpdate, favorites, onAddFromGallery }: {
@@ -18,66 +20,37 @@ export function CollectionDetail({ collection, wallpapers, onBack, onPreview, on
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(collection.name);
   const [desc, setDesc] = useState(collection.description || "");
-  const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { addLocalImage, getCollectionImages } = useLocalImagesStore();
-  const localImages = useMemo(() => getCollectionImages(collection.id), [collection.id, getCollectionImages]);
+  const { addImages, removeImage, getImagesForCollection } = useLocalImagesStore();
+  const localImages = useMemo(() => getImagesForCollection(collection.id), [collection.id, getImagesForCollection]);
 
   const handleSave = () => { onUpdate?.(name, desc); setEditing(false); };
 
-  const handleLocalUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const blobUrl = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      addLocalImage(collection.id, {
-        id: `local-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        title: file.name.replace(/\.[^.]+$/, "").replace(/[-_]/g, " "),
-        image_url: blobUrl,
-        thumbnail_url_medium: blobUrl,
-        width: img.width,
-        height: img.height,
-        resolution: `${img.width}x${img.height}`,
-        is_local: true,
-        original_path: file.name,
-        collection_id: collection.id,
-        added_at: new Date().toISOString(),
+  const handleAddLocalImages = useCallback(async () => {
+    try {
+      const selected = await open({
+        multiple: true,
+        filters: [{ name: "Images", extensions: ["jpg", "jpeg", "png", "webp", "gif", "bmp", "tiff"] }],
+        title: "Select images to add to collection",
       });
-    };
-    img.src = blobUrl;
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  }, [collection.id, addLocalImage]);
+      if (!selected) return;
 
-  const handleImageError = useCallback((imageId: string) => {
-    setFailedImages((prev) => new Set(prev).add(imageId));
-  }, []);
+      const paths = Array.isArray(selected) ? selected : [selected];
+      const files = paths.map((p) => ({
+        name: p.split("/").pop()?.split("\\").pop() ?? "Untitled",
+        localPath: p,
+      }));
+      addImages(files, collection.id);
+    } catch (err) {
+      console.error("File picker failed:", err);
+    }
+  }, [collection.id, addImages]);
 
-  const allWallpapers = useMemo(() => {
-    const localAsWallpapers = localImages.map((img) => ({
-      id: parseInt(img.id.replace(/\D/g, "").slice(0, 8), 10) || Math.floor(Math.random() * 1000000),
-      title: img.title,
-      image_url: failedImages.has(img.id) ? "" : img.image_url,
-      thumbnail_url_medium: failedImages.has(img.id) ? "" : img.thumbnail_url_medium,
-      thumbnail_url_small: "",
-      width: img.width,
-      height: img.height,
-      resolution: img.resolution,
-      orientation: "landscape" as const,
-      category_id: null,
-      author: null,
-      tags: [],
-      downloads_count: 0,
-      likes_count: 0,
-      is_active: true,
-      is_featured: false,
-      created_at: img.added_at,
-      _localId: img.id,
-      is_local: true,
-    }));
-    return [...localAsWallpapers, ...wallpapers];
-  }, [localImages, wallpapers, failedImages]);
+  const handleRemoveLocal = useCallback((id: string) => {
+    removeImage(id);
+  }, [removeImage]);
+
+  const totalCount = wallpapers.length + localImages.length;
 
   return (
     <div className="space-y-6">
@@ -90,28 +63,65 @@ export function CollectionDetail({ collection, wallpapers, onBack, onPreview, on
             <div>
               <div className="flex items-center gap-2"><h2 className="text-2xl font-semibold">{collection.name}</h2>{collection.is_public ? <Globe className="h-4 w-4 text-muted-foreground" /> : <Lock className="h-4 w-4 text-muted-foreground" />}<Button variant="ghost" size="icon" onClick={() => setEditing(true)}><Edit3 className="h-4 w-4" /></Button></div>
               {collection.description && <p className="mt-1 text-sm text-muted-foreground">{collection.description}</p>}
-              <Badge variant="secondary" className="mt-2">{wallpapers.length + localImages.length} wallpapers{localImages.length > 0 && <span className="ml-1 text-muted-foreground">({localImages.length} local)</span>}</Badge>
+              <Badge variant="secondary" className="mt-2">
+                {totalCount} wallpaper{totalCount !== 1 ? "s" : ""}
+                {localImages.length > 0 && (
+                  <span className="ml-1 text-muted-foreground">({localImages.length} local)</span>
+                )}
+              </Badge>
             </div>
           )}
         </div>
       </div>
+
+      {/* Action buttons */}
       <div className="flex gap-2">
-        <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleLocalUpload} />
-        <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
-          <Upload className="mr-1.5 h-4 w-4" />Upload Local Image
+        <Button variant="outline" size="sm" onClick={handleAddLocalImages}>
+          <Upload className="mr-1.5 h-4 w-4" />Add Local Images
         </Button>
         <Button variant="outline" size="sm" onClick={onAddFromGallery}>
           <Images className="mr-1.5 h-4 w-4" />Add from Gallery
         </Button>
       </div>
+
+      {/* Local images info banner */}
       {localImages.length > 0 && (
-        <div className="rounded-lg border border-border bg-muted/50 p-3 flex items-center gap-2 text-sm text-muted-foreground">
-          <HardDrive className="h-4 w-4" />
-          <span>{localImages.length} local image{localImages.length !== 1 ? "s" : ""} on this device. Stored in browser memory — show as "not found" after restart.</span>
+        <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 p-3 text-sm text-muted-foreground">
+          <HardDrive className="h-4 w-4 shrink-0" />
+          <span>{localImages.length} local image{localImages.length !== 1 ? "s" : ""} stored on this device. File paths are saved — images remain accessible as long as the files exist at their original locations.</span>
         </div>
       )}
+
       <Separator />
-      <WallpaperGrid wallpapers={allWallpapers as Wallpaper[]} isLoading={false} onPreview={onPreview} onFavorite={onFavorite} favorites={favorites} />
+
+      {/* Local images grid */}
+      {localImages.length > 0 && (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {localImages.map((img) => (
+            <LocalImageCard key={img.id} image={img} onRemove={handleRemoveLocal} />
+          ))}
+        </div>
+      )}
+
+      {/* Database wallpapers grid */}
+      <WallpaperGrid wallpapers={wallpapers} isLoading={false} onPreview={onPreview} onFavorite={onFavorite} favorites={favorites} />
+
+      {/* Empty state */}
+      {totalCount === 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col items-center justify-center gap-3 py-16 text-muted-foreground"
+        >
+          <div className="rounded-2xl bg-muted p-5">
+            <Images className="h-10 w-10" />
+          </div>
+          <div className="text-center">
+            <h3 className="text-base font-semibold">No wallpapers yet</h3>
+            <p className="mt-1 text-sm">Add images from the gallery or upload local files</p>
+          </div>
+        </motion.div>
+      )}
     </div>
   );
 }

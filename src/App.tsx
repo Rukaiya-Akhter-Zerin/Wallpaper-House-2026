@@ -1,7 +1,10 @@
+import { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
 import { useTheme } from "@/hooks/useTheme";
 import { useAppStore } from "@/stores/appStore";
+import { useAuthStore } from "@/stores/authStore";
+import { useFavoritesStore } from "@/stores/favoritesStore";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Dashboard } from "@/pages/Dashboard";
 import { Categories } from "@/pages/Categories";
@@ -9,6 +12,7 @@ import { Favorites } from "@/pages/Favorites";
 import { Collections } from "@/pages/Collections";
 import { AnalyticsPage } from "@/pages/AnalyticsPage";
 import { SettingsPage } from "@/pages/SettingsPage";
+import { ProfilePage } from "@/pages/ProfilePage";
 import { pageTransition } from "@/lib/motion";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ToastContainer } from "@/components/ui/toast-container";
@@ -33,6 +37,7 @@ function CurrentPage() {
     collections: <Collections />,
     analytics: <AnalyticsPage />,
     settings: <SettingsPage />,
+    profile: <ProfilePage />,
   };
 
   return (
@@ -46,6 +51,14 @@ function CurrentPage() {
 
 export default function App() {
   const themeHook = useTheme();
+  const loadSession = useAuthStore((s) => s.loadSession);
+  const loadFavorites = useFavoritesStore((s) => s.loadFavorites);
+
+  // Load auth session and favorites on app startup
+  useEffect(() => {
+    loadSession();
+    loadFavorites();
+  }, [loadSession, loadFavorites]);
 
   return (
     <QueryClientProvider client={queryClient}>

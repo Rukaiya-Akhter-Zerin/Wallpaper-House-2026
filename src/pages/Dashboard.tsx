@@ -104,10 +104,10 @@ export function Dashboard() {
   }, [toggleFavorite]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
-  const autoScrollRef = useRef<number>();
+  const autoScrollRef = useRef<number | undefined>(undefined);
   const isManualScrolling = useRef(false);
   const isHovering = useRef(false);
-  const resumeTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   // Triple featured array for seamless infinite loop
   const tripledFeatured = useMemo(() => {
@@ -115,7 +115,7 @@ export function Dashboard() {
     return [...featured, ...featured, ...featured];
   }, [featured]);
 
-  const CARD_W = 384; // w-96
+  const CARD_W = 320; // w-80
   const GAP = 12;     // gap-3
 
   // On mount, scroll to the middle set
@@ -131,7 +131,7 @@ export function Dashboard() {
     const el = scrollRef.current;
     if (!el) return;
 
-    const SPEED = 40; // px per second
+    const SPEED = 100; // px per second — smooth but not sluggish
     const loopLength = featured.length * (CARD_W + GAP);
     let lastTime: number | null = null;
 
@@ -175,12 +175,16 @@ export function Dashboard() {
           </div>
           <div ref={scrollRef} className="group flex gap-3 overflow-hidden pb-2 scrollbar-hide" onMouseEnter={() => { isHovering.current = true; }} onMouseLeave={() => { isHovering.current = false; }}>
             {tripledFeatured.map((wp, idx) => (
-              <div key={`${wp.id}-${idx}`} onClick={() => setPreviewWallpaper(wp)} className="group/card relative h-56 w-96 flex-shrink-0 cursor-pointer overflow-hidden rounded-xl">
-                <img src={wp.thumbnail_url_medium ?? wp.image_url} alt={wp.title} className="h-full w-full object-cover transition-transform duration-[400ms] group-hover/card:scale-100 scale-[1.07]" style={{ transitionTimingFunction: "cubic-bezier(0.25, 0.46, 0.45, 0.94)" }} loading="lazy" />
+              <div key={`${wp.id}-${idx}`} className="group/card" style={{ overflow: "visible", position: "relative", willChange: "transform", zIndex: 1 }}>
+                <div
+                  onClick={() => setPreviewWallpaper(wp)}
+                  className="relative h-44 w-80 flex-shrink-0 cursor-pointer overflow-hidden rounded-xl"
+                >
+                <img src={wp.thumbnail_url_medium ?? wp.image_url} alt={wp.title} className="h-full w-full object-cover" loading="lazy" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                 <p className="absolute bottom-2 left-3 text-sm font-medium text-white">{wp.title}</p>
                 {/* Action buttons on hover */}
-                <div className="absolute right-2 top-2 flex gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+                <div className="absolute right-2 top-2 flex gap-1.5 opacity-0 transition-opacity group-hover/card:opacity-100">
                   <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={(e) => { e.stopPropagation(); handleFavorite(wp); }} title={isFavorited(wp.id) ? "Remove from Favorites" : "Add to Favorites"} className={cn("flex h-9 w-9 items-center justify-center rounded-full backdrop-blur-md", isFavorited(wp.id) ? "bg-red-500/90 text-white" : "bg-white/20 text-white hover:bg-white/30")}>
                     <Heart className={cn("h-4 w-4", isFavorited(wp.id) && "fill-white")} />
                   </motion.button>
@@ -190,6 +194,7 @@ export function Dashboard() {
                   <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={(e) => { e.stopPropagation(); handleSetWallpaper(wp); }} className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-500/90 text-white backdrop-blur-md hover:bg-blue-600/90" title="Set as Wallpaper">
                     <Monitor className="h-4 w-4" />
                   </motion.button>
+                </div>
                 </div>
               </div>
             ))}
@@ -244,7 +249,7 @@ export function Dashboard() {
       </motion.div>
 
       {/* Preview modal with all actions connected */}
-      <WallpaperPreview wallpaper={previewWallpaper} onClose={() => setPreviewWallpaper(null)} isFavorited={previewWallpaper ? isFavorited(previewWallpaper.id) : false} onFavorite={handleFavorite} onSetWallpaper={handleSetWallpaper} />
+      <WallpaperPreview wallpaper={previewWallpaper} onClose={() => setPreviewWallpaper(null)} isFavorited={previewWallpaper ? isFavorited(previewWallpaper.id) : false} onFavorite={handleFavorite} onDownload={handleDownload} onSetWallpaper={handleSetWallpaper} />
     </motion.div>
   );
 }

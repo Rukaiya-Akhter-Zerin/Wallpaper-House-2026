@@ -60,8 +60,8 @@ export function WallpaperGrid({
     return (
       <Masonry
         breakpointCols={breakpointColumns}
-        className="flex gap-4"
-        columnClassName="flex flex-col gap-4"
+        className="flex gap-2"
+        columnClassName="flex flex-col gap-2 overflow-visible"
       >
         {Array.from({ length: 12 }).map((_, i) => (
           <Skeleton key={i} className="h-64 rounded-xl" />
@@ -94,8 +94,8 @@ export function WallpaperGrid({
     <motion.div variants={staggerContainer(0.04)} initial="hidden" animate="visible">
       <Masonry
         breakpointCols={breakpointColumns}
-        className="flex gap-4"
-        columnClassName="flex flex-col gap-4"
+        className="flex gap-2"
+        columnClassName="flex flex-col gap-2 overflow-visible"
       >
         {wallpapers.map((wallpaper) => (
           <motion.div key={wallpaper.id} variants={fadeInUp}>

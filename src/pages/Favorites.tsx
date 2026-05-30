@@ -66,31 +66,34 @@ export function Favorites() {
         <motion.div variants={staggerContainer(0.04)}>
           <Masonry
             breakpointCols={breakpointColumns}
-            className="flex gap-4"
-            columnClassName="flex flex-col gap-4"
+            className="flex gap-2"
+            columnClassName="flex flex-col gap-2"
           >
             {wallpapers.map((wp) => (
-              <motion.div
-                key={wp.id}
-                variants={fadeInUp}
-                className="relative group overflow-hidden rounded-xl"
-              >
-                <img
-                  src={wp.thumbnail_url_medium || wp.image_url}
-                  alt={wp.title}
-                  loading="lazy"
-                  className="w-full rounded-xl object-cover transition-transform duration-[400ms] group-hover:scale-100 scale-[1.07]"
-                  style={{ transitionTimingFunction: "cubic-bezier(0.25, 0.46, 0.45, 0.94)" }}
-                />
-                <div className="absolute top-2 right-2">
-                  <FavoriteToggle wallpaperId={wp.id} />
-                </div>
-                <div className="absolute inset-x-2 bottom-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-                  <div className="rounded-lg bg-black/60 px-3 py-1.5 backdrop-blur-sm">
-                    <p className="text-xs font-medium text-white truncate">{wp.title}</p>
+              <div key={wp.id} style={{ overflow: "visible", position: "relative", willChange: "transform" }}>
+                <motion.div
+                  variants={fadeInUp}
+                  className="relative group overflow-hidden rounded-xl"
+                  whileHover={{ scale: 1.35 }}
+                  transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                  style={{ transformOrigin: "center center", willChange: "transform", position: "relative" }}
+                >
+                  <img
+                    src={wp.thumbnail_url_medium || wp.image_url}
+                    alt={wp.title}
+                    loading="lazy"
+                    className="w-full rounded-xl object-cover"
+                  />
+                  <div className="absolute top-2 right-2">
+                    <FavoriteToggle wallpaperId={wp.id} />
                   </div>
-                </div>
-              </motion.div>
+                  <div className="absolute inset-x-2 bottom-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                    <div className="rounded-lg bg-black/60 px-3 py-1.5 backdrop-blur-sm">
+                      <p className="text-xs font-medium text-white truncate">{wp.title}</p>
+                    </div>
+                  </div>
+                </motion.div>
+              </div>
             ))}
           </Masonry>
         </motion.div>

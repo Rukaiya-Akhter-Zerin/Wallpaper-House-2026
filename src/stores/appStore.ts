@@ -6,7 +6,8 @@ export type ViewName =
   | "favorites"
   | "collections"
   | "analytics"
-  | "settings";
+  | "settings"
+  | "profile";
 
 interface AppState {
   sidebarCollapsed: boolean;

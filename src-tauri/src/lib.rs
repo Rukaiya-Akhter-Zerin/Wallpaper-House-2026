@@ -44,6 +44,7 @@ pub fn run() {
             commands::cache::clear_cache,
             commands::cache::get_app_data_dir,
             commands::cache::download_and_cache,
+            commands::cache::copy_to_downloads,
             commands::rotation::schedule_rotation,
             commands::rotation::cancel_rotation,
             commands::rotation::get_rotation_status,

@@ -97,6 +97,54 @@ pub async fn get_app_data_dir() -> Result<String, Error> {
     Ok(app_dir.to_string_lossy().into_owned())
 }
 
+/// Copy a file to the user's Downloads directory.
+#[command]
+pub async fn copy_to_downloads(source_path: String) -> Result<String, Error> {
+    let source = PathBuf::from(&source_path);
+    if !source.exists() {
+        return Err(Error::Io(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            format!("Source file not found: {}", source_path),
+        )));
+    }
+
+    let downloads_dir = dirs::download_dir().ok_or_else(|| {
+        Error::CacheError("Could not determine Downloads directory".to_string())
+    })?;
+
+    let file_name = source
+        .file_name()
+        .ok_or_else(|| Error::CacheError("Invalid file name".to_string()))?;
+
+    let mut dest = downloads_dir.join(&file_name);
+
+    // Avoid overwriting — append a number if file exists
+    if dest.exists() {
+        let stem = source
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("file");
+        let ext = source
+            .extension()
+            .and_then(|s| s.to_str())
+            .unwrap_or("");
+        for i in 1..10000 {
+            let new_name = if ext.is_empty() {
+                format!("{} ({})", stem, i)
+            } else {
+                format!("{} ({}).{}", stem, i, ext)
+            };
+            dest = downloads_dir.join(&new_name);
+            if !dest.exists() {
+                break;
+            }
+        }
+    }
+
+    fs::copy(&source, &dest)?;
+    Ok(dest.to_string_lossy().into_owned())
+}
+
 /// Download an image from URL and save to cache, then return the local path.
 /// This avoids sending multi-MB byte arrays over Tauri IPC.
 #[command]
