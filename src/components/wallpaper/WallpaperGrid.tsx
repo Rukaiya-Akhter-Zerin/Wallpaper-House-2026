@@ -58,11 +58,15 @@ export function WallpaperGrid({
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <Masonry
+        breakpointCols={breakpointColumns}
+        className="flex gap-4"
+        columnClassName="flex flex-col gap-4"
+      >
         {Array.from({ length: 12 }).map((_, i) => (
           <Skeleton key={i} className="h-64 rounded-xl" />
         ))}
-      </div>
+      </Masonry>
     );
   }
 
