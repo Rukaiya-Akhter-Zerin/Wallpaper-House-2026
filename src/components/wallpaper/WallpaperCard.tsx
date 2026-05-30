@@ -1,10 +1,9 @@
 import { useState, useCallback } from "react";
 import { motion } from "motion/react";
-import { Heart, Download, Eye, Monitor } from "lucide-react";
+import { Heart, Download, Monitor } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { cardHover, springConfigs } from "@/lib/motion";
 import type { Wallpaper } from "@/types/database";
 
 interface WallpaperCardProps {
@@ -47,27 +46,37 @@ export function WallpaperCard({
     [wallpaper, onDownload]
   );
 
+  const handleSetWallpaper = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onSetWallpaper?.(wallpaper);
+    },
+    [wallpaper, onSetWallpaper]
+  );
+
   return (
-    <motion.div
-      {...cardHover}
-      onHoverStart={() => setHovered(true)}
-      onHoverEnd={() => setHovered(false)}
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       onClick={() => onPreview(wallpaper)}
       className="group relative cursor-pointer overflow-hidden rounded-xl"
       style={{ aspectRatio }}
-      layout
     >
       {!loaded && (
         <Skeleton className="absolute inset-0 h-full w-full rounded-xl" />
       )}
 
-      <motion.img
+      <img
         src={imageUrl}
         alt={wallpaper.title}
         className={cn(
-          "h-full w-full object-cover transition-opacity duration-300",
+          "h-full w-full object-cover",
           loaded ? "opacity-100" : "opacity-0"
         )}
+        style={{
+          transform: hovered ? "scale(1)" : "scale(1.07)",
+          transition: "transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.3s ease",
+        }}
         onLoad={() => setLoaded(true)}
         loading="lazy"
       />
@@ -83,8 +92,9 @@ export function WallpaperCard({
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
             onClick={handleFavorite}
+            title={isFavorited ? "Remove from Favorites" : "Add to Favorites"}
             className={cn(
-              "flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-md transition-colors",
+              "flex h-9 w-9 items-center justify-center rounded-full backdrop-blur-md transition-colors",
               isFavorited
                 ? "bg-red-500/90 text-white"
                 : "bg-white/20 text-white hover:bg-white/30"
@@ -96,15 +106,16 @@ export function WallpaperCard({
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
             onClick={handleDownload}
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-md hover:bg-white/30"
+            title="Download"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-md hover:bg-white/30"
           >
             <Download className="h-4 w-4" />
           </motion.button>
           <motion.button
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
-            onClick={(e) => { e.stopPropagation(); onSetWallpaper?.(wallpaper); }}
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-500/90 text-white backdrop-blur-md hover:bg-blue-600/90"
+            onClick={handleSetWallpaper}
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-500/90 text-white backdrop-blur-md hover:bg-blue-600/90"
             title="Set as Desktop Wallpaper"
           >
             <Monitor className="h-4 w-4" />
@@ -122,18 +133,7 @@ export function WallpaperCard({
             )}
           </div>
         </div>
-
-        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-          <motion.div
-            initial={{ scale: 0.8 }}
-            animate={{ scale: hovered ? 1 : 0.8 }}
-            transition={springConfigs.bouncy}
-            className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 backdrop-blur-md"
-          >
-            <Eye className="h-5 w-5 text-white" />
-          </motion.div>
-        </div>
       </motion.div>
-    </motion.div>
+    </div>
   );
 }
