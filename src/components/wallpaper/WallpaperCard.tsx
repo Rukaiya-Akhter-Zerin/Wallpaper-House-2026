@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { motion } from "motion/react";
-import { Heart, Download, Monitor, X } from "lucide-react";
+import { Heart, Download, Monitor, X, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -12,7 +12,7 @@ interface WallpaperCardProps {
   wallpaper: Wallpaper;
   onPreview: (wallpaper: Wallpaper, originRect: DOMRect) => void;
   onFavorite?: (wallpaper: Wallpaper) => void;
-  onDownload?: (wallpaper: Wallpaper) => void;
+  onDownload?: (wallpaper: Wallpaper) => void | Promise<void>;
   onSetWallpaper?: (wallpaper: Wallpaper) => void;
   onRemoveFromCollection?: (wallpaper: Wallpaper) => void;
   isFavorited?: boolean;
@@ -33,6 +33,7 @@ export function WallpaperCard({
 }: WallpaperCardProps) {
   const [loaded, setLoaded] = useState(false);
   const [hovered, setHovered] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -56,11 +57,17 @@ export function WallpaperCard({
   );
 
   const handleDownload = useCallback(
-    (e: React.MouseEvent) => {
+    async (e: React.MouseEvent) => {
       e.stopPropagation();
-      onDownload?.(wallpaper);
+      if (!onDownload || isDownloading) return;
+      setIsDownloading(true);
+      try {
+        await onDownload(wallpaper);
+      } finally {
+        setIsDownloading(false);
+      }
     },
-    [wallpaper, onDownload]
+    [wallpaper, onDownload, isDownloading]
   );
 
   const handleSetWallpaper = useCallback(
@@ -172,10 +179,16 @@ export function WallpaperCard({
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={handleDownload}
-                title="Download"
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-md hover:bg-white/30"
+                disabled={isDownloading}
+                title={isDownloading ? "Downloading..." : "Download"}
+                className={cn(
+                  "relative flex h-8 w-8 items-center justify-center rounded-full text-white backdrop-blur-md transition-all",
+                  isDownloading
+                    ? "cursor-wait border border-cyan-200/80 bg-cyan-400/20 shadow-[0_0_18px_rgba(34,211,238,0.95),inset_0_0_12px_rgba(255,255,255,0.22)]"
+                    : "bg-white/20 hover:bg-white/30"
+                )}
               >
-                <Download className="h-4 w-4" />
+                {isDownloading ? <Loader2 className="h-4 w-4 animate-spin text-cyan-100 drop-shadow-[0_0_8px_rgba(103,232,249,1)]" /> : <Download className="h-4 w-4" />}
               </motion.button>
             )}
             {onSetWallpaper && (

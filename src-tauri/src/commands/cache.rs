@@ -12,13 +12,11 @@ fn cache_dir() -> Result<PathBuf, Error> {
     Ok(cache)
 }
 
-fn url_to_filename(url: &str) -> String {
-    use std::collections::hash_map::DefaultHasher;
-    use std::hash::{Hash, Hasher};
-    let mut hasher = DefaultHasher::new();
-    url.hash(&mut hasher);
-    let hash = hasher.finish();
-    let ext = url
+fn extension_from_url(url: &str) -> &str {
+    url
+        .split(|c| c == '?' || c == '#')
+        .next()
+        .unwrap_or(url)
         .rsplit('.')
         .next()
         .and_then(|e| {
@@ -28,8 +26,65 @@ fn url_to_filename(url: &str) -> String {
                 None
             }
         })
-        .unwrap_or("jpg");
+        .unwrap_or("jpg")
+}
+
+fn url_to_filename(url: &str) -> String {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    let mut hasher = DefaultHasher::new();
+    url.hash(&mut hasher);
+    let hash = hasher.finish();
+    let ext = extension_from_url(url);
     format!("{:016x}.{}", hash, ext)
+}
+
+fn wallpaper_house_downloads_dir() -> Result<PathBuf, Error> {
+    let downloads_dir = dirs::download_dir().ok_or_else(|| {
+        Error::CacheError("Could not determine Downloads directory".to_string())
+    })?;
+    let dir = downloads_dir.join("Walpaper-House-2026");
+    fs::create_dir_all(&dir)?;
+    Ok(dir)
+}
+
+fn sanitize_file_stem(name: &str) -> String {
+    let sanitized: String = name
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || matches!(c, ' ' | '-' | '_' | '(' | ')') {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect::<String>()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
+
+    let trimmed = sanitized.trim_matches(|c| c == '.' || c == ' ' || c == '_' || c == '-').trim();
+    if trimmed.is_empty() {
+        "wallpaper".to_string()
+    } else {
+        trimmed.chars().take(90).collect()
+    }
+}
+
+fn unique_destination(dir: &PathBuf, stem: &str, ext: &str) -> PathBuf {
+    let mut dest = dir.join(format!("{}.{}", stem, ext));
+    if !dest.exists() {
+        return dest;
+    }
+
+    for i in 1..10000 {
+        let candidate = dir.join(format!("{} ({}).{}", stem, i, ext));
+        if !candidate.exists() {
+            dest = candidate;
+            break;
+        }
+    }
+    dest
 }
 
 /// Save binary data to the local cache.
@@ -97,7 +152,7 @@ pub async fn get_app_data_dir() -> Result<String, Error> {
     Ok(app_dir.to_string_lossy().into_owned())
 }
 
-/// Copy a file to the user's Downloads directory.
+/// Copy a file to the user's Downloads/Walpaper-House-2026 directory.
 #[command]
 pub async fn copy_to_downloads(source_path: String) -> Result<String, Error> {
     let source = PathBuf::from(&source_path);
@@ -108,40 +163,50 @@ pub async fn copy_to_downloads(source_path: String) -> Result<String, Error> {
         )));
     }
 
-    let downloads_dir = dirs::download_dir().ok_or_else(|| {
-        Error::CacheError("Could not determine Downloads directory".to_string())
-    })?;
+    let downloads_dir = wallpaper_house_downloads_dir()?;
 
-    let file_name = source
-        .file_name()
-        .ok_or_else(|| Error::CacheError("Invalid file name".to_string()))?;
+    let stem = source
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .map(sanitize_file_stem)
+        .unwrap_or_else(|| "wallpaper".to_string());
+    let ext = source
+        .extension()
+        .and_then(|s| s.to_str())
+        .filter(|e| !e.is_empty())
+        .unwrap_or("jpg");
 
-    let mut dest = downloads_dir.join(&file_name);
-
-    // Avoid overwriting — append a number if file exists
-    if dest.exists() {
-        let stem = source
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or("file");
-        let ext = source
-            .extension()
-            .and_then(|s| s.to_str())
-            .unwrap_or("");
-        for i in 1..10000 {
-            let new_name = if ext.is_empty() {
-                format!("{} ({})", stem, i)
-            } else {
-                format!("{} ({}).{}", stem, i, ext)
-            };
-            dest = downloads_dir.join(&new_name);
-            if !dest.exists() {
-                break;
-            }
-        }
-    }
+    let dest = unique_destination(&downloads_dir, &stem, ext);
 
     fs::copy(&source, &dest)?;
+    Ok(dest.to_string_lossy().into_owned())
+}
+
+/// Download an image from URL and save it to Downloads/Walpaper-House-2026.
+#[command]
+pub async fn download_wallpaper(url: String, title: String) -> Result<String, Error> {
+    let downloads_dir = wallpaper_house_downloads_dir()?;
+    let ext = extension_from_url(&url);
+    let stem = sanitize_file_stem(&title);
+    let dest = unique_destination(&downloads_dir, &stem, ext);
+
+    let response = reqwest::get(&url)
+        .await
+        .map_err(|e| Error::CommandFailed(format!("Download failed: {}", e)))?;
+
+    if !response.status().is_success() {
+        return Err(Error::CommandFailed(format!(
+            "Download HTTP error: {}",
+            response.status()
+        )));
+    }
+
+    let bytes = response
+        .bytes()
+        .await
+        .map_err(|e| Error::CommandFailed(format!("Failed to read response: {}", e)))?;
+
+    fs::write(&dest, &bytes)?;
     Ok(dest.to_string_lossy().into_owned())
 }
 

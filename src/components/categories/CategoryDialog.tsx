@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { X, Heart, Download, Monitor, ChevronLeft, ChevronRight, TrendingUp, Clock, Star } from "lucide-react";
+import { X, Heart, Download, Monitor, ChevronLeft, ChevronRight, TrendingUp, Clock, Star, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useWallpapers } from "@/hooks/useWallpapers";
@@ -16,7 +16,7 @@ interface CategoryDialogProps {
   onPreview: (wallpaper: Wallpaper) => void;
 }
 
-export function CategoryDialog({ category, onClose, onPreview }: CategoryDialogProps) {
+export function CategoryDialog({ category, onClose }: CategoryDialogProps) {
   const { data } = useWallpapers({ category_id: category.id });
   const wallpapers = useMemo(() => data?.pages.flatMap(p => p) ?? [], [data]);
   const favoriteIds = useFavoritesStore(s => s.favoriteIds);
@@ -25,6 +25,7 @@ export function CategoryDialog({ category, onClose, onPreview }: CategoryDialogP
 
   const [previewWallpaper, setPreviewWallpaper] = useState<Wallpaper | null>(null);
   const [previewOrigin, setPreviewOrigin] = useState<DOMRect | null>(null);
+  const [downloadingIds, setDownloadingIds] = useState<Set<number>>(() => new Set());
 
   /* ── Infinite carousel ── */
   const carouselItems = wallpapers.slice(0, 5);
@@ -59,10 +60,20 @@ export function CategoryDialog({ category, onClose, onPreview }: CategoryDialogP
 
   const handleDownload = async (wp: Wallpaper, e?: React.MouseEvent) => {
     e?.stopPropagation();
+    if (downloadingIds.has(wp.id)) return;
+    setDownloadingIds((ids) => new Set(ids).add(wp.id));
     try {
-      await invoke<string>("download_and_cache", { url: wp.image_url });
-      addToast(`Downloaded: ${wp.title}`, "success");
-    } catch { addToast("Download failed", "error"); }
+      await invoke<string>("download_wallpaper", { url: wp.image_url, title: wp.title });
+      addToast(`Downloaded to Downloads/Walpaper-House-2026: ${wp.title}`, "success");
+    } catch {
+      addToast("Download failed", "error");
+    } finally {
+      setDownloadingIds((ids) => {
+        const next = new Set(ids);
+        next.delete(wp.id);
+        return next;
+      });
+    }
   };
 
   const ActionButtons = ({ wp, vertical }: { wp: Wallpaper; vertical?: boolean }) => (
@@ -70,8 +81,17 @@ export function CategoryDialog({ category, onClose, onPreview }: CategoryDialogP
       <button onClick={e => { e.stopPropagation(); toggleFavorite(wp.id); }} className={cn("flex h-7 w-7 items-center justify-center rounded-full backdrop-blur-md", favoriteIds.has(wp.id) ? "bg-red-500/90 text-white" : "bg-white/20 text-white")}>
         <Heart className="h-3.5 w-3.5" fill={favoriteIds.has(wp.id) ? "currentColor" : "none"} />
       </button>
-      <button onClick={e => handleDownload(wp, e)} className="flex h-7 w-7 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-md">
-        <Download className="h-3.5 w-3.5" />
+      <button
+        onClick={e => handleDownload(wp, e)}
+        disabled={downloadingIds.has(wp.id)}
+        className={cn(
+          "flex h-7 w-7 items-center justify-center rounded-full text-white backdrop-blur-md transition-all",
+          downloadingIds.has(wp.id)
+            ? "cursor-wait border border-cyan-200/80 bg-cyan-400/20 shadow-[0_0_16px_rgba(34,211,238,0.9),inset_0_0_10px_rgba(255,255,255,0.2)]"
+            : "bg-white/20"
+        )}
+      >
+        {downloadingIds.has(wp.id) ? <Loader2 className="h-3.5 w-3.5 animate-spin text-cyan-100 drop-shadow-[0_0_8px_rgba(103,232,249,1)]" /> : <Download className="h-3.5 w-3.5" />}
       </button>
       <button onClick={e => handleSetWallpaper(wp, e)} className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-500/90 text-white backdrop-blur-md">
         <Monitor className="h-3.5 w-3.5" />
@@ -219,8 +239,17 @@ export function CategoryDialog({ category, onClose, onPreview }: CategoryDialogP
                         <button onClick={e => { e.stopPropagation(); toggleFavorite(wp.id); }} className={cn("flex h-7 w-7 items-center justify-center rounded-full backdrop-blur-md", favoriteIds.has(wp.id) ? "bg-red-500/90 text-white" : "bg-white/20 text-white")}>
                           <Heart className="h-3.5 w-3.5" fill={favoriteIds.has(wp.id) ? "currentColor" : "none"} />
                         </button>
-                        <button onClick={e => handleDownload(wp, e)} className="flex h-7 w-7 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-md">
-                          <Download className="h-3.5 w-3.5" />
+                        <button
+                          onClick={e => handleDownload(wp, e)}
+                          disabled={downloadingIds.has(wp.id)}
+                          className={cn(
+                            "flex h-7 w-7 items-center justify-center rounded-full text-white backdrop-blur-md transition-all",
+                            downloadingIds.has(wp.id)
+                              ? "cursor-wait border border-cyan-200/80 bg-cyan-400/20 shadow-[0_0_16px_rgba(34,211,238,0.9),inset_0_0_10px_rgba(255,255,255,0.2)]"
+                              : "bg-white/20"
+                          )}
+                        >
+                          {downloadingIds.has(wp.id) ? <Loader2 className="h-3.5 w-3.5 animate-spin text-cyan-100 drop-shadow-[0_0_8px_rgba(103,232,249,1)]" /> : <Download className="h-3.5 w-3.5" />}
                         </button>
                         <button onClick={e => handleSetWallpaper(wp, e)} className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-500/90 text-white backdrop-blur-md">
                           <Monitor className="h-3.5 w-3.5" />

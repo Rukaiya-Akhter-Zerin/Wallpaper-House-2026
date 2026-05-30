@@ -27,7 +27,7 @@ interface WallpaperGridProps {
   fetchNextPage?: () => void;
   onPreview: (wallpaper: Wallpaper, originRect: DOMRect) => void;
   onFavorite?: (wallpaper: Wallpaper) => void;
-  onDownload?: (wallpaper: Wallpaper) => void;
+  onDownload?: (wallpaper: Wallpaper) => void | Promise<void>;
   onSetWallpaper?: (wallpaper: Wallpaper) => void;
   onRemoveFromCollection?: (wallpaper: Wallpaper) => void;
   favorites?: Set<number>;

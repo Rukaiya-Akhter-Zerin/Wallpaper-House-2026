@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { motion } from "motion/react";
 import { invoke } from "@tauri-apps/api/core";
-import { Search, X, SlidersHorizontal, ChevronLeft, ChevronRight, Heart, Download, Monitor } from "lucide-react";
+import { Search, X, SlidersHorizontal, ChevronLeft, ChevronRight, Heart, Download, Monitor, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -74,6 +74,7 @@ export function Dashboard() {
 
   // Handle set wallpaper via Tauri
   const [settingWallpaper, setSettingWallpaper] = useState(false);
+  const [downloadingIds, setDownloadingIds] = useState<Set<number>>(() => new Set());
 
   const handleSetWallpaper = useCallback(async (wallpaper: Wallpaper) => {
     if (settingWallpaper) return;
@@ -91,14 +92,22 @@ export function Dashboard() {
   }, [settingWallpaper, addToast]);
 
   const handleDownload = useCallback(async (wallpaper: Wallpaper) => {
+    if (downloadingIds.has(wallpaper.id)) return;
+    setDownloadingIds((ids) => new Set(ids).add(wallpaper.id));
     try {
-      await invoke<string>("download_and_cache", { url: wallpaper.image_url });
-      addToast(`Downloaded: ${wallpaper.title}`, "success");
+      await invoke<string>("download_wallpaper", { url: wallpaper.image_url, title: wallpaper.title });
+      addToast(`Downloaded to Downloads/Walpaper-House-2026: ${wallpaper.title}`, "success");
     } catch (err) {
       console.error("Failed to download wallpaper:", err);
       addToast("Download failed", "error");
+    } finally {
+      setDownloadingIds((ids) => {
+        const next = new Set(ids);
+        next.delete(wallpaper.id);
+        return next;
+      });
     }
-  }, [addToast]);
+  }, [addToast, downloadingIds]);
 
   const handleFavorite = useCallback((wallpaper: Wallpaper) => {
     toggleFavorite(wallpaper.id);
@@ -189,8 +198,20 @@ export function Dashboard() {
                   <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={(e) => { e.stopPropagation(); handleFavorite(wp); }} title={isFavorited(wp.id) ? "Remove from Favorites" : "Add to Favorites"} className={cn("flex h-9 w-9 items-center justify-center rounded-full backdrop-blur-md", isFavorited(wp.id) ? "bg-red-500/90 text-white" : "bg-white/20 text-white hover:bg-white/30")}>
                     <Heart className={cn("h-4 w-4", isFavorited(wp.id) && "fill-white")} />
                   </motion.button>
-                  <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={(e) => { e.stopPropagation(); handleDownload(wp); }} className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-md hover:bg-white/30" title="Download">
-                    <Download className="h-4 w-4" />
+                  <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={(e) => { e.stopPropagation(); handleDownload(wp); }}
+                    disabled={downloadingIds.has(wp.id)}
+                    className={cn(
+                      "flex h-9 w-9 items-center justify-center rounded-full text-white backdrop-blur-md transition-all",
+                      downloadingIds.has(wp.id)
+                        ? "cursor-wait border border-cyan-200/80 bg-cyan-400/20 shadow-[0_0_18px_rgba(34,211,238,0.95),inset_0_0_12px_rgba(255,255,255,0.22)]"
+                        : "bg-white/20 hover:bg-white/30"
+                    )}
+                    title={downloadingIds.has(wp.id) ? "Downloading..." : "Download"}
+                  >
+                    {downloadingIds.has(wp.id) ? <Loader2 className="h-4 w-4 animate-spin text-cyan-100 drop-shadow-[0_0_8px_rgba(103,232,249,1)]" /> : <Download className="h-4 w-4" />}
                   </motion.button>
                   <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={(e) => { e.stopPropagation(); handleSetWallpaper(wp); }} className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-500/90 text-white backdrop-blur-md hover:bg-blue-600/90" title="Set as Wallpaper">
                     <Monitor className="h-4 w-4" />

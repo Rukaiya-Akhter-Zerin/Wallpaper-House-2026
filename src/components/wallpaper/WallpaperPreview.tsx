@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import type { Variants } from "motion/react";
-import { X, Heart, Download, ZoomIn, ZoomOut, ExternalLink } from "lucide-react";
+import { X, Heart, Download, ZoomIn, ZoomOut, ExternalLink, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -12,7 +12,7 @@ interface WallpaperPreviewProps {
   wallpaper: Wallpaper | null;
   onClose: () => void;
   onFavorite?: (wallpaper: Wallpaper) => void;
-  onDownload?: (wallpaper: Wallpaper) => void;
+  onDownload?: (wallpaper: Wallpaper) => void | Promise<void>;
   onSetWallpaper?: (wallpaper: Wallpaper) => void;
   isFavorited?: boolean;
   onNext?: () => void;
@@ -66,6 +66,7 @@ const detailItem: Variants = {
 
 export function WallpaperPreview({ wallpaper, onClose, onFavorite, onDownload, onSetWallpaper, isFavorited = false, onNext, onPrev, originRect }: WallpaperPreviewProps) {
   const [scale, setScale] = useState(1);
+  const [isDownloading, setIsDownloading] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
   const heroOriginRef = useRef<{ left: number; top: number; width: number; height: number } | null>(null);
 
@@ -121,6 +122,16 @@ export function WallpaperPreview({ wallpaper, onClose, onFavorite, onDownload, o
   const zoomIn = () => setScale(s => Math.min(s + 0.5, 5));
   const zoomOut = () => setScale(s => Math.max(s - 0.5, 0.25));
   const resetZoom = () => setScale(1);
+
+  const handleDownloadClick = useCallback(async () => {
+    if (!wallpaper || !onDownload || isDownloading) return;
+    setIsDownloading(true);
+    try {
+      await onDownload(wallpaper);
+    } finally {
+      setIsDownloading(false);
+    }
+  }, [wallpaper, onDownload, isDownloading]);
 
   return (
     <AnimatePresence>
@@ -319,7 +330,20 @@ export function WallpaperPreview({ wallpaper, onClose, onFavorite, onDownload, o
                 )}
                 <div className="flex gap-2">
                   {onFavorite && <Button variant="outline" className="flex-1" onClick={() => onFavorite(wallpaper)}><Heart className={cn("mr-2 h-4 w-4", isFavorited && "fill-red-500 text-red-500")} />{isFavorited ? "Favorited" : "Favorite"}</Button>}
-                  {onDownload && <Button variant="outline" className="flex-1" onClick={() => onDownload(wallpaper)}><Download className="mr-2 h-4 w-4" />Download</Button>}
+                  {onDownload && (
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "flex-1 transition-all",
+                        isDownloading && "border-cyan-300/80 bg-cyan-400/10 text-cyan-100 shadow-[0_0_18px_rgba(34,211,238,0.65),inset_0_0_12px_rgba(255,255,255,0.12)]"
+                      )}
+                      onClick={handleDownloadClick}
+                      disabled={isDownloading}
+                    >
+                      {isDownloading ? <Loader2 className="mr-2 h-4 w-4 animate-spin drop-shadow-[0_0_8px_rgba(103,232,249,1)]" /> : <Download className="mr-2 h-4 w-4" />}
+                      {isDownloading ? "Downloading..." : "Download"}
+                    </Button>
+                  )}
                 </div>
                 {wallpaper.source_url && <Button variant="ghost" className="w-full text-xs" asChild><a href={wallpaper.source_url} target="_blank" rel="noopener noreferrer"><ExternalLink className="mr-2 h-3 w-3" />View Source</a></Button>}
               </motion.div>
