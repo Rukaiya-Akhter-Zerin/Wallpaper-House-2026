@@ -2,10 +2,11 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { fadeInUp, staggerContainer } from "@/lib/motion";
 import { FolderOpen, Plus } from "lucide-react";
-import { useCollections, useCreateCollection, useDeleteCollection, useCollectionWallpapers } from "@/hooks/useCollections";
+import { useCollections, useCreateCollection, useDeleteCollection, useCollectionWallpapers, useAddToCollection } from "@/hooks/useCollections";
 import { CollectionGrid } from "@/components/collections/CollectionGrid";
 import { CollectionDetail } from "@/components/collections/CollectionDetail";
 import { CreateCollectionDialog } from "@/components/collections/CreateCollectionDialog";
+import { GalleryPickerModal } from "@/components/collections/GalleryPickerModal";
 import { Button } from "@/components/ui/button";
 import { useCollectionsStore } from "@/stores/collectionsStore";
 import type { Wallpaper } from "@/types/database";
@@ -13,10 +14,19 @@ import type { Wallpaper } from "@/types/database";
 export function Collections() {
   const { collections, selectedCollectionId, selectCollection } = useCollections();
   const [showCreate, setShowCreate] = useState(false);
+  const [showGalleryPicker, setShowGalleryPicker] = useState(false);
   const createCol = useCreateCollection();
   const deleteCol = useDeleteCollection();
+  const addToCol = useAddToCollection();
   const selectedCollection = collections.find((c) => c.id === selectedCollectionId) || null;
   const { data: collectionWallpapers = [] } = useCollectionWallpapers(selectedCollectionId);
+
+  const existingWallpaperIds = new Set(collectionWallpapers.map((w) => w.id));
+
+  const handleAddFromGallery = (wallpaper: Wallpaper) => {
+    if (!selectedCollectionId) return;
+    addToCol.mutate({ collectionId: selectedCollectionId, wallpaperId: wallpaper.id });
+  };
 
   const handleCreate = async (name: string, description: string, isPublic: boolean) => {
     await createCol.mutate({ name, description, is_public: isPublic });
@@ -45,6 +55,8 @@ export function Collections() {
               wallpapers={collectionWallpapers}
               onBack={() => selectCollection(null)}
               onPreview={() => {}}
+              onFavorite={() => {}}
+              onAddFromGallery={() => setShowGalleryPicker(true)}
             />
           </motion.div>
         ) : (
@@ -55,6 +67,7 @@ export function Collections() {
       </AnimatePresence>
 
       <CreateCollectionDialog open={showCreate} onClose={() => setShowCreate(false)} onCreate={handleCreate} />
+      <GalleryPickerModal open={showGalleryPicker} onClose={() => setShowGalleryPicker(false)} onSelect={handleAddFromGallery} existingIds={existingWallpaperIds} />
     </motion.div>
   );
 }
