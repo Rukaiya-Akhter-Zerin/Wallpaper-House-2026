@@ -292,6 +292,176 @@ body {
 }
 
 /* ============================================
+   WALLPAPER CARD ZOOM-OUT EFFECT
+   ============================================ */
+
+.wallpaper-card-img {
+  transform: scale(1.07);
+  transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.group:hover .wallpaper-card-img {
+  transform: scale(1.0);
+}
+
+/* ============================================
+   MASONRY LAYOUT SUPPORT
+   ============================================ */
+
+.masonry-grid {
+  display: flex;
+  gap: 1rem;
+  width: 100%;
+}
+
+.masonry-column {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  background-clip: padding-box;
+}
+
+/* ============================================
+   CARD HOVER ZOOM EFFECT (alias)
+   ============================================ */
+
+.card-zoom-img {
+  transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  transform: scale(1.07);
+}
+
+.group:hover .card-zoom-img {
+  transform: scale(1);
+}
+
+/* ============================================
+   FROSTED GLASS BUTTONS
+   ============================================ */
+
+.glass-button {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.2s ease;
+}
+
+.glass-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* ============================================
+   CATEGORY DIALOG ANIMATIONS
+   ============================================ */
+
+@keyframes category-dialog-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes category-dialog-exit {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+}
+
+.category-dialog-enter {
+  animation: category-dialog-enter 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.category-dialog-exit {
+  animation: category-dialog-exit 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ============================================
+   3D CAROUSEL SUPPORT
+   ============================================ */
+
+.carousel-container {
+  perspective: 1000px;
+  transform-style: preserve-3d;
+}
+
+.carousel-item {
+  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  transform-style: preserve-3d;
+}
+
+/* ============================================
+   TOAST ANIMATIONS
+   ============================================ */
+
+@keyframes toast-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes toast-slide-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.95);
+  }
+}
+
+.toast-enter {
+  animation: toast-slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.toast-exit {
+  animation: toast-slide-out 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ============================================
+   AVATAR GRADIENT
+   ============================================ */
+
+.avatar-gradient {
+  background: linear-gradient(135deg, #a855f7, #3b82f6);
+}
+
+/* ============================================
+   HORIZONTAL SCROLL RIBBON
+   ============================================ */
+
+.scroll-ribbon {
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scroll-ribbon::-webkit-scrollbar {
+  display: none;
+}
+
+.scroll-ribbon > * {
+  scroll-snap-align: start;
+}
+
+/* ============================================
    REDUCED MOTION
    ============================================ */
 
