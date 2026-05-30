@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { motion } from "motion/react";
-import { Download, Monitor, Trash2, HardDrive } from "lucide-react";
+import { Download, Monitor, X, HardDrive } from "lucide-react";
 import { invoke, convertFileSrc } from "@tauri-apps/api/core";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -21,7 +21,6 @@ export function LocalImageCard({ image, onRemove }: LocalImageCardProps) {
 
   const src = convertFileSrc(image.localPath);
 
-  // Check if file exists on mount
   useEffect(() => {
     const img = new window.Image();
     img.onload = () => setExists(true);
@@ -62,11 +61,26 @@ export function LocalImageCard({ image, onRemove }: LocalImageCardProps) {
     onRemove(image.id);
   }, [image.id, onRemove]);
 
-  // Missing file placeholder
+  const removeButton = (
+    <motion.button
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: hovered ? 1 : 0, scale: hovered ? 1 : 0.9 }}
+      whileHover={{ scale: 1.18 }}
+      whileTap={{ scale: 0.9 }}
+      className="absolute right-3 top-3 z-20 flex h-8 w-8 items-center justify-center text-orange-300 drop-shadow-[0_0_8px_rgba(251,146,60,0.95)] transition-colors hover:text-orange-200"
+      onClick={handleRemove}
+      title="Remove from collection"
+    >
+      <X className="h-5 w-5 stroke-[2.5]" />
+    </motion.button>
+  );
+
   if (!exists) {
     return (
       <motion.div
         {...cardHover}
+        onHoverStart={() => setHovered(true)}
+        onHoverEnd={() => setHovered(false)}
         className="group relative cursor-default overflow-hidden rounded-xl"
         style={{ aspectRatio: "16/10" }}
       >
@@ -81,15 +95,7 @@ export function LocalImageCard({ image, onRemove }: LocalImageCardProps) {
             Local
           </span>
         </div>
-        <motion.button
-          initial={{ opacity: 0 }}
-          whileHover={{ scale: 1.1 }}
-          className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/50 text-white opacity-0 transition-opacity group-hover:opacity-100"
-          onClick={handleRemove}
-          title="Remove from collection"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </motion.button>
+        {removeButton}
       </motion.div>
     );
   }
@@ -103,9 +109,7 @@ export function LocalImageCard({ image, onRemove }: LocalImageCardProps) {
       style={{ aspectRatio: "16/10" }}
       layout
     >
-      {!loaded && (
-        <Skeleton className="absolute inset-0 h-full w-full rounded-xl" />
-      )}
+      {!loaded && <Skeleton className="absolute inset-0 h-full w-full rounded-xl" />}
 
       <motion.img
         src={src}
@@ -119,14 +123,13 @@ export function LocalImageCard({ image, onRemove }: LocalImageCardProps) {
         loading="lazy"
       />
 
-      {/* Hover overlay */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: hovered ? 1 : 0 }}
         transition={{ duration: 0.2 }}
         className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"
       >
-        <div className="absolute right-3 top-3 flex gap-2">
+        <div className="absolute right-12 top-3 flex gap-2">
           <motion.button
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
@@ -147,35 +150,19 @@ export function LocalImageCard({ image, onRemove }: LocalImageCardProps) {
           >
             <Monitor className="h-4 w-4" />
           </motion.button>
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={handleRemove}
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-red-500/80 text-white backdrop-blur-md hover:bg-red-600/80"
-            title="Remove from collection"
-          >
-            <Trash2 className="h-4 w-4" />
-          </motion.button>
         </div>
 
         <div className="absolute bottom-0 left-0 right-0 p-3">
           <p className="truncate text-sm font-medium text-white">{image.name}</p>
-          {wallpaperStatus === "setting" && (
-            <p className="mt-1 text-xs text-white/70">Setting wallpaper...</p>
-          )}
-          {wallpaperStatus === "done" && (
-            <p className="mt-1 text-xs text-green-300">Wallpaper set!</p>
-          )}
-          {downloadStatus === "copying" && (
-            <p className="mt-1 text-xs text-white/70">Copying to Downloads...</p>
-          )}
-          {downloadStatus === "done" && (
-            <p className="mt-1 text-xs text-green-300">Copied to Downloads!</p>
-          )}
+          {wallpaperStatus === "setting" && <p className="mt-1 text-xs text-white/70">Setting wallpaper...</p>}
+          {wallpaperStatus === "done" && <p className="mt-1 text-xs text-green-300">Wallpaper set!</p>}
+          {downloadStatus === "copying" && <p className="mt-1 text-xs text-white/70">Copying to Downloads...</p>}
+          {downloadStatus === "done" && <p className="mt-1 text-xs text-green-300">Copied to Downloads!</p>}
         </div>
       </motion.div>
 
-      {/* Local badge - always visible */}
+      {removeButton}
+
       <div className="absolute left-2 top-2">
         <span className="inline-flex items-center gap-1 rounded-full bg-violet-500/90 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-md">
           <HardDrive className="h-2.5 w-2.5" />

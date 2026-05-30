@@ -104,6 +104,7 @@ export function useAddToCollection() {
       await store.addToCollection(params.collectionId, params.wallpaperId);
       queryClient.invalidateQueries({ queryKey: ["collections"] });
       queryClient.invalidateQueries({ queryKey: ["collection", params.collectionId] });
+      queryClient.invalidateQueries({ queryKey: ["collection-wallpapers", params.collectionId] });
     },
   };
 }
@@ -117,6 +118,7 @@ export function useRemoveFromCollection() {
       await store.removeFromCollection(params.collectionId, params.wallpaperId);
       queryClient.invalidateQueries({ queryKey: ["collections"] });
       queryClient.invalidateQueries({ queryKey: ["collection", params.collectionId] });
+      queryClient.invalidateQueries({ queryKey: ["collection-wallpapers", params.collectionId] });
     },
   };
 }

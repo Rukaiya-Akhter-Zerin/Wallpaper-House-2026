@@ -8,12 +8,16 @@ import { staggerContainer, fadeInUp } from "@/lib/motion";
 import type { Wallpaper } from "@/types/database";
 
 const breakpointColumns = {
-  default: 4,
-  1440: 4,
-  1024: 3,
-  768: 2,
-  500: 1,
+  default: 6,
+  1800: 6,
+  1500: 5,
+  1200: 4,
+  900: 3,
+  640: 2,
+  420: 1,
 };
+
+const skeletonHeights = [260, 340, 220, 420, 300, 380, 240, 460, 310, 360, 280, 400];
 
 interface WallpaperGridProps {
   wallpapers: Wallpaper[];
@@ -25,7 +29,9 @@ interface WallpaperGridProps {
   onFavorite?: (wallpaper: Wallpaper) => void;
   onDownload?: (wallpaper: Wallpaper) => void;
   onSetWallpaper?: (wallpaper: Wallpaper) => void;
+  onRemoveFromCollection?: (wallpaper: Wallpaper) => void;
   favorites?: Set<number>;
+  useMasonrySizing?: boolean;
 }
 
 export function WallpaperGrid({
@@ -38,7 +44,9 @@ export function WallpaperGrid({
   onFavorite,
   onDownload,
   onSetWallpaper,
+  onRemoveFromCollection,
   favorites,
+  useMasonrySizing = true,
 }: WallpaperGridProps) {
   const observer = useRef<IntersectionObserver | null>(null);
 
@@ -60,11 +68,15 @@ export function WallpaperGrid({
     return (
       <Masonry
         breakpointCols={breakpointColumns}
-        className="flex gap-2"
-        columnClassName="flex flex-col gap-2 overflow-visible"
+        className="masonry-grid pinterest-masonry-grid"
+        columnClassName="masonry-column pinterest-masonry-column overflow-visible"
       >
-        {Array.from({ length: 12 }).map((_, i) => (
-          <Skeleton key={i} className="h-64 rounded-xl" />
+        {Array.from({ length: 18 }).map((_, i) => (
+          <Skeleton
+            key={i}
+            className="rounded-xl"
+            style={{ height: skeletonHeights[i % skeletonHeights.length] }}
+          />
         ))}
       </Masonry>
     );
@@ -91,20 +103,23 @@ export function WallpaperGrid({
   }
 
   return (
-    <motion.div variants={staggerContainer(0.04)} initial="hidden" animate="visible">
+    <motion.div variants={staggerContainer(0.025)} initial="hidden" animate="visible">
       <Masonry
         breakpointCols={breakpointColumns}
-        className="flex gap-2"
-        columnClassName="flex flex-col gap-2 overflow-visible"
+        className="masonry-grid pinterest-masonry-grid"
+        columnClassName="masonry-column pinterest-masonry-column overflow-visible"
       >
-        {wallpapers.map((wallpaper) => (
+        {wallpapers.map((wallpaper, index) => (
           <motion.div key={wallpaper.id} variants={fadeInUp}>
             <WallpaperCard
               wallpaper={wallpaper}
+              index={index}
+              useMasonrySizing={useMasonrySizing}
               onPreview={onPreview}
               onFavorite={onFavorite}
               onDownload={onDownload}
               onSetWallpaper={onSetWallpaper}
+              onRemoveFromCollection={onRemoveFromCollection}
               isFavorited={favorites?.has(wallpaper.id) ?? false}
             />
           </motion.div>
@@ -114,11 +129,19 @@ export function WallpaperGrid({
       {hasNextPage && (
         <div ref={sentinelRef} className="flex justify-center py-8">
           {isFetchingNextPage && (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 w-full">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton key={i} className="h-64 rounded-xl" />
+            <Masonry
+              breakpointCols={breakpointColumns}
+              className="masonry-grid pinterest-masonry-grid w-full"
+              columnClassName="masonry-column pinterest-masonry-column overflow-visible"
+            >
+              {Array.from({ length: 8 }).map((_, i) => (
+                <Skeleton
+                  key={i}
+                  className="rounded-xl"
+                  style={{ height: skeletonHeights[i % skeletonHeights.length] }}
+                />
               ))}
-            </div>
+            </Masonry>
           )}
         </div>
       )}

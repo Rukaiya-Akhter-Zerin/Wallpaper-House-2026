@@ -12,7 +12,7 @@ import { useLocalImagesStore } from "@/stores/localImagesStore";
 import type { Wallpaper, Collection } from "@/types/database";
 
 export function CollectionDetail({ collection, wallpapers, onBack, onPreview, onFavorite, onRemove, onUpdate, favorites, onAddFromGallery }: {
-  collection: Collection; wallpapers: Wallpaper[]; onBack: () => void; onPreview: (w: Wallpaper) => void;
+  collection: Collection; wallpapers: Wallpaper[]; onBack: () => void; onPreview: (w: Wallpaper, originRect: DOMRect) => void;
   onFavorite?: (w: Wallpaper) => void; onRemove?: (wallpaperId: number) => void;
   onUpdate?: (name: string, description: string) => void; favorites?: Set<number>;
   onAddFromGallery?: () => void;
@@ -21,8 +21,13 @@ export function CollectionDetail({ collection, wallpapers, onBack, onPreview, on
   const [name, setName] = useState(collection.name);
   const [desc, setDesc] = useState(collection.description || "");
 
-  const { addImages, removeImage, getImagesForCollection } = useLocalImagesStore();
-  const localImages = useMemo(() => getImagesForCollection(collection.id), [collection.id, getImagesForCollection]);
+  const addImages = useLocalImagesStore((s) => s.addImages);
+  const removeImage = useLocalImagesStore((s) => s.removeImage);
+  const allLocalImages = useLocalImagesStore((s) => s.images);
+  const localImages = useMemo(
+    () => allLocalImages.filter((img) => img.collectionId === collection.id),
+    [allLocalImages, collection.id]
+  );
 
   const handleSave = () => { onUpdate?.(name, desc); setEditing(false); };
 
@@ -74,7 +79,6 @@ export function CollectionDetail({ collection, wallpapers, onBack, onPreview, on
         </div>
       </div>
 
-      {/* Action buttons */}
       <div className="flex gap-2">
         <Button variant="outline" size="sm" onClick={handleAddLocalImages}>
           <Upload className="mr-1.5 h-4 w-4" />Add Local Images
@@ -84,17 +88,15 @@ export function CollectionDetail({ collection, wallpapers, onBack, onPreview, on
         </Button>
       </div>
 
-      {/* Local images info banner */}
       {localImages.length > 0 && (
         <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 p-3 text-sm text-muted-foreground">
           <HardDrive className="h-4 w-4 shrink-0" />
-          <span>{localImages.length} local image{localImages.length !== 1 ? "s" : ""} stored on this device. File paths are saved — images remain accessible as long as the files exist at their original locations.</span>
+          <span>{localImages.length} local image{localImages.length !== 1 ? "s" : ""} stored on this device. Removing one only removes it from this collection, not from disk.</span>
         </div>
       )}
 
       <Separator />
 
-      {/* Local images grid */}
       {localImages.length > 0 && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {localImages.map((img) => (
@@ -103,10 +105,15 @@ export function CollectionDetail({ collection, wallpapers, onBack, onPreview, on
         </div>
       )}
 
-      {/* Database wallpapers grid */}
-      <WallpaperGrid wallpapers={wallpapers} isLoading={false} onPreview={onPreview} onFavorite={onFavorite} favorites={favorites} />
+      <WallpaperGrid
+        wallpapers={wallpapers}
+        isLoading={false}
+        onPreview={onPreview}
+        onFavorite={onFavorite}
+        onRemoveFromCollection={onRemove ? (wallpaper) => onRemove(wallpaper.id) : undefined}
+        favorites={favorites}
+      />
 
-      {/* Empty state */}
       {totalCount === 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}

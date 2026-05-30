@@ -1,22 +1,33 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { fadeInUp, staggerContainer } from "@/lib/motion";
 import { FolderOpen, Plus } from "lucide-react";
-import { useCollections, useCreateCollection, useDeleteCollection, useCollectionWallpapers, useAddToCollection } from "@/hooks/useCollections";
+import { useCollections, useCreateCollection, useDeleteCollection, useCollectionWallpapers, useAddToCollection, useRemoveFromCollection } from "@/hooks/useCollections";
 import { CollectionGrid } from "@/components/collections/CollectionGrid";
 import { CollectionDetail } from "@/components/collections/CollectionDetail";
 import { CreateCollectionDialog } from "@/components/collections/CreateCollectionDialog";
 import { GalleryPickerModal } from "@/components/collections/GalleryPickerModal";
+import { WallpaperPreview } from "@/components/wallpaper/WallpaperPreview";
 import { Button } from "@/components/ui/button";
+import { useFavoritesStore } from "@/stores/favoritesStore";
 import type { Wallpaper } from "@/types/database";
 
 export function Collections() {
   const { collections, selectedCollectionId, selectCollection } = useCollections();
   const [showCreate, setShowCreate] = useState(false);
   const [showGalleryPicker, setShowGalleryPicker] = useState(false);
+  const [previewWallpaper, setPreviewWallpaper] = useState<Wallpaper | null>(null);
+  const [previewOrigin, setPreviewOrigin] = useState<DOMRect | null>(null);
+
   const createCol = useCreateCollection();
   const deleteCol = useDeleteCollection();
   const addToCol = useAddToCollection();
+  const removeFromCol = useRemoveFromCollection();
+
+  const favoriteIds = useFavoritesStore((s) => s.favoriteIds);
+  const toggleFavorite = useFavoritesStore((s) => s.toggleFavorite);
+  const isFavorited = useCallback((id: number) => favoriteIds.has(id), [favoriteIds]);
+
   const selectedCollection = collections.find((c) => c.id === selectedCollectionId) || null;
   const { data: collectionWallpapers = [] } = useCollectionWallpapers(selectedCollectionId);
 
@@ -31,8 +42,22 @@ export function Collections() {
     setShowGalleryPicker(false);
   };
 
+  const handleRemoveFromCollection = (wallpaperId: number) => {
+    if (!selectedCollectionId) return;
+    removeFromCol.mutate({ collectionId: selectedCollectionId, wallpaperId });
+  };
+
   const handleCreate = async (name: string, description: string, isPublic: boolean) => {
     await createCol.mutate({ name, description, is_public: isPublic });
+  };
+
+  const handlePreview = (wallpaper: Wallpaper, originRect: DOMRect) => {
+    setPreviewWallpaper(wallpaper);
+    setPreviewOrigin(originRect);
+  };
+
+  const handleFavorite = (wallpaper: Wallpaper) => {
+    toggleFavorite(wallpaper.id);
   };
 
   return (
@@ -57,9 +82,11 @@ export function Collections() {
               collection={selectedCollection}
               wallpapers={collectionWallpapers}
               onBack={() => selectCollection(null)}
-              onPreview={() => {}}
-              onFavorite={() => {}}
+              onPreview={handlePreview}
+              onFavorite={handleFavorite}
+              onRemove={handleRemoveFromCollection}
               onAddFromGallery={() => setShowGalleryPicker(true)}
+              favorites={favoriteIds}
             />
           </motion.div>
         ) : (
@@ -78,6 +105,13 @@ export function Collections() {
           existingIds={existingWallpaperIds}
         />
       )}
+      <WallpaperPreview
+        wallpaper={previewWallpaper}
+        onClose={() => setPreviewWallpaper(null)}
+        originRect={previewOrigin}
+        isFavorited={previewWallpaper ? isFavorited(previewWallpaper.id) : false}
+        onFavorite={handleFavorite}
+      />
     </motion.div>
   );
 }
