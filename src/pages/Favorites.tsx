@@ -1,22 +1,69 @@
-import Masonry from "react-masonry-css";
+import { useCallback, useState } from "react";
 import { motion } from "motion/react";
+import { invoke } from "@tauri-apps/api/core";
 import { fadeInUp, staggerContainer } from "@/lib/motion";
 import { Heart } from "lucide-react";
 import { useFavoriteWallpapers, useFavorites } from "@/hooks/useFavorites";
 import { Skeleton } from "@/components/ui/skeleton";
-import { FavoriteToggle } from "@/components/favorites/FavoriteToggle";
-
-const breakpointColumns = {
-  default: 4,
-  1440: 4,
-  1024: 3,
-  768: 2,
-  500: 1,
-};
+import { WallpaperGrid } from "@/components/wallpaper/WallpaperGrid";
+import { WallpaperPreview } from "@/components/wallpaper/WallpaperPreview";
+import { useFavoritesStore } from "@/stores/favoritesStore";
+import { useToastStore } from "@/stores/toastStore";
+import type { Wallpaper } from "@/types/database";
 
 export function Favorites() {
   useFavorites();
   const { data: wallpapers, isLoading } = useFavoriteWallpapers();
+  const [previewWallpaper, setPreviewWallpaper] = useState<Wallpaper | null>(null);
+  const [previewOrigin, setPreviewOrigin] = useState<DOMRect | null>(null);
+  const [settingWallpaper, setSettingWallpaper] = useState(false);
+  const [downloadingIds, setDownloadingIds] = useState<Set<number>>(() => new Set());
+
+  const addToast = useToastStore((s) => s.addToast);
+  const favoriteIds = useFavoritesStore((s) => s.favoriteIds);
+  const toggleFavorite = useFavoritesStore((s) => s.toggleFavorite);
+  const isFavorited = useCallback((id: number) => favoriteIds.has(id), [favoriteIds]);
+
+  const handleFavorite = useCallback((wallpaper: Wallpaper) => {
+    toggleFavorite(wallpaper.id);
+  }, [toggleFavorite]);
+
+  const handleDownload = useCallback(async (wallpaper: Wallpaper) => {
+    if (downloadingIds.has(wallpaper.id)) return;
+    setDownloadingIds((ids) => new Set(ids).add(wallpaper.id));
+    try {
+      await invoke<string>("download_wallpaper", {
+        wallpaperId: wallpaper.id,
+        url: wallpaper.image_url,
+        title: wallpaper.title,
+      });
+      addToast(`Downloaded to Downloads/Walpaper-House-2026: ${wallpaper.title}`, "success");
+    } catch (err) {
+      console.error("Failed to download wallpaper:", err);
+      addToast("Download failed", "error");
+    } finally {
+      setDownloadingIds((ids) => {
+        const next = new Set(ids);
+        next.delete(wallpaper.id);
+        return next;
+      });
+    }
+  }, [addToast, downloadingIds]);
+
+  const handleSetWallpaper = useCallback(async (wallpaper: Wallpaper) => {
+    if (settingWallpaper) return;
+    setSettingWallpaper(true);
+    try {
+      const cachePath = await invoke<string>("download_and_cache", { url: wallpaper.image_url });
+      await invoke("set_wallpaper", { path: cachePath });
+      addToast("Wallpaper set successfully!", "success");
+    } catch (err) {
+      console.error("Failed to set wallpaper:", err);
+      addToast("Failed to set wallpaper", "error");
+    } finally {
+      setSettingWallpaper(false);
+    }
+  }, [addToast, settingWallpaper]);
 
   return (
     <motion.div
@@ -63,41 +110,33 @@ export function Favorites() {
       )}
 
       {!isLoading && wallpapers && wallpapers.length > 0 && (
-        <motion.div variants={staggerContainer(0.04)}>
-          <Masonry
-            breakpointCols={breakpointColumns}
-            className="flex gap-2"
-            columnClassName="flex flex-col gap-2"
-          >
-            {wallpapers.map((wp) => (
-              <div key={wp.id} style={{ overflow: "visible", position: "relative", willChange: "transform" }}>
-                <motion.div
-                  variants={fadeInUp}
-                  className="relative group overflow-hidden rounded-xl"
-                  whileHover={{ scale: 1.35 }}
-                  transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                  style={{ transformOrigin: "center center", willChange: "transform", position: "relative" }}
-                >
-                  <img
-                    src={wp.thumbnail_url_medium || wp.image_url}
-                    alt={wp.title}
-                    loading="lazy"
-                    className="w-full rounded-xl object-cover"
-                  />
-                  <div className="absolute top-2 right-2">
-                    <FavoriteToggle wallpaperId={wp.id} />
-                  </div>
-                  <div className="absolute inset-x-2 bottom-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-                    <div className="rounded-lg bg-black/60 px-3 py-1.5 backdrop-blur-sm">
-                      <p className="text-xs font-medium text-white truncate">{wp.title}</p>
-                    </div>
-                  </div>
-                </motion.div>
-              </div>
-            ))}
-          </Masonry>
+        <motion.div variants={fadeInUp} className="flex-1">
+          <WallpaperGrid
+            wallpapers={wallpapers}
+            onPreview={(wp, rect) => {
+              setPreviewWallpaper(wp);
+              setPreviewOrigin(rect);
+            }}
+            onFavorite={handleFavorite}
+            onDownload={handleDownload}
+            onSetWallpaper={handleSetWallpaper}
+            favorites={favoriteIds}
+          />
         </motion.div>
       )}
+
+      <WallpaperPreview
+        wallpaper={previewWallpaper}
+        onClose={() => {
+          setPreviewWallpaper(null);
+          setPreviewOrigin(null);
+        }}
+        originRect={previewOrigin}
+        isFavorited={previewWallpaper ? isFavorited(previewWallpaper.id) : false}
+        onFavorite={handleFavorite}
+        onDownload={handleDownload}
+        onSetWallpaper={handleSetWallpaper}
+      />
     </motion.div>
   );
 }

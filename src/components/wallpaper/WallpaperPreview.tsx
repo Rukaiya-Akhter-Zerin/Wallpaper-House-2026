@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import type { Variants } from "motion/react";
-import { X, Heart, Download, ZoomIn, ZoomOut, ExternalLink, Loader2 } from "lucide-react";
+import { X, Heart, Download, ZoomIn, ZoomOut, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { DownloadProgressRing } from "./DownloadProgressRing";
+import { useWallpaperDownloadProgress } from "@/hooks/useWallpaperDownloadProgress";
 import type { Wallpaper } from "@/types/database";
 
 interface WallpaperPreviewProps {
@@ -67,6 +69,7 @@ const detailItem: Variants = {
 export function WallpaperPreview({ wallpaper, onClose, onFavorite, onDownload, onSetWallpaper, isFavorited = false, onNext, onPrev, originRect }: WallpaperPreviewProps) {
   const [scale, setScale] = useState(1);
   const [isDownloading, setIsDownloading] = useState(false);
+  const downloadProgress = useWallpaperDownloadProgress(wallpaper?.id ?? 0, isDownloading);
   const imgRef = useRef<HTMLImageElement>(null);
   const heroOriginRef = useRef<{ left: number; top: number; width: number; height: number } | null>(null);
 
@@ -335,13 +338,17 @@ export function WallpaperPreview({ wallpaper, onClose, onFavorite, onDownload, o
                       variant="outline"
                       className={cn(
                         "flex-1 transition-all",
-                        isDownloading && "border-cyan-300/80 bg-cyan-400/10 text-cyan-100 shadow-[0_0_18px_rgba(34,211,238,0.65),inset_0_0_12px_rgba(255,255,255,0.12)]"
+                        isDownloading && "border-emerald-400/70 bg-emerald-400/10 text-emerald-100"
                       )}
                       onClick={handleDownloadClick}
                       disabled={isDownloading}
                     >
-                      {isDownloading ? <Loader2 className="mr-2 h-4 w-4 animate-spin drop-shadow-[0_0_8px_rgba(103,232,249,1)]" /> : <Download className="mr-2 h-4 w-4" />}
-                      {isDownloading ? "Downloading..." : "Download"}
+                      {isDownloading ? (
+                        <DownloadProgressRing progress={downloadProgress} size={26} iconSize="h-3.5 w-3.5" className="mr-2 bg-transparent hover:bg-transparent" disabled />
+                      ) : (
+                        <Download className="mr-2 h-4 w-4" />
+                      )}
+                      {isDownloading ? `${Math.round(downloadProgress ?? 1)}%` : "Download"}
                     </Button>
                   )}
                 </div>

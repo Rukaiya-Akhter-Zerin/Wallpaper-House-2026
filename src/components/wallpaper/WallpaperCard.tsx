@@ -1,7 +1,8 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { motion } from "motion/react";
-import { Heart, Download, Monitor, X, Loader2 } from "lucide-react";
+import { Heart, Monitor, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { DownloadCircleButton } from "./DownloadCircleButton";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type { Wallpaper } from "@/types/database";
@@ -164,32 +165,19 @@ export function WallpaperCard({
                 whileTap={{ scale: 0.9 }}
                 onClick={handleFavorite}
                 title={isFavorited ? "Remove from Favorites" : "Add to Favorites"}
-                className={cn(
-                  "flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-md transition-colors",
-                  isFavorited
-                    ? "bg-red-500/90 text-white"
-                    : "bg-white/20 text-white hover:bg-white/30"
-                )}
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-md transition-colors hover:bg-white/30"
               >
-                <Heart className="h-4 w-4" fill={isFavorited ? "currentColor" : "none"} />
+                <Heart className={cn("h-4 w-4", isFavorited && "fill-red-500 text-red-500")} />
               </motion.button>
             )}
             {onDownload && (
-              <motion.button
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
+              <DownloadCircleButton
+                wallpaperId={wallpaper.id}
+                active={isDownloading}
                 onClick={handleDownload}
-                disabled={isDownloading}
+                size={32}
                 title={isDownloading ? "Downloading..." : "Download"}
-                className={cn(
-                  "relative flex h-8 w-8 items-center justify-center rounded-full text-white backdrop-blur-md transition-all",
-                  isDownloading
-                    ? "cursor-wait border border-cyan-200/80 bg-cyan-400/20 shadow-[0_0_18px_rgba(34,211,238,0.95),inset_0_0_12px_rgba(255,255,255,0.22)]"
-                    : "bg-white/20 hover:bg-white/30"
-                )}
-              >
-                {isDownloading ? <Loader2 className="h-4 w-4 animate-spin text-cyan-100 drop-shadow-[0_0_8px_rgba(103,232,249,1)]" /> : <Download className="h-4 w-4" />}
-              </motion.button>
+              />
             )}
             {onSetWallpaper && (
               <motion.button

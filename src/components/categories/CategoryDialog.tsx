@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { X, Heart, Download, Monitor, ChevronLeft, ChevronRight, TrendingUp, Clock, Star, Loader2 } from "lucide-react";
+import { X, Heart, Monitor, ChevronLeft, ChevronRight, TrendingUp, Clock, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useWallpapers } from "@/hooks/useWallpapers";
@@ -8,6 +8,7 @@ import { useFavoritesStore } from "@/stores/favoritesStore";
 import { useToastStore } from "@/stores/toastStore";
 import { invoke } from "@tauri-apps/api/core";
 import { WallpaperPreview } from "@/components/wallpaper/WallpaperPreview";
+import { DownloadCircleButton } from "@/components/wallpaper/DownloadCircleButton";
 import type { Category, Wallpaper } from "@/types/database";
 
 interface CategoryDialogProps {
@@ -63,7 +64,7 @@ export function CategoryDialog({ category, onClose }: CategoryDialogProps) {
     if (downloadingIds.has(wp.id)) return;
     setDownloadingIds((ids) => new Set(ids).add(wp.id));
     try {
-      await invoke<string>("download_wallpaper", { url: wp.image_url, title: wp.title });
+      await invoke<string>("download_wallpaper", { wallpaperId: wp.id, url: wp.image_url, title: wp.title });
       addToast(`Downloaded to Downloads/Walpaper-House-2026: ${wp.title}`, "success");
     } catch {
       addToast("Download failed", "error");
@@ -78,21 +79,17 @@ export function CategoryDialog({ category, onClose }: CategoryDialogProps) {
 
   const ActionButtons = ({ wp, vertical }: { wp: Wallpaper; vertical?: boolean }) => (
     <div className={cn("absolute right-2 top-2 opacity-0 transition-opacity group-hover:opacity-100", vertical ? "flex flex-col gap-1.5" : "flex gap-1.5")}>
-      <button onClick={e => { e.stopPropagation(); toggleFavorite(wp.id); }} className={cn("flex h-7 w-7 items-center justify-center rounded-full backdrop-blur-md", favoriteIds.has(wp.id) ? "bg-red-500/90 text-white" : "bg-white/20 text-white")}>
-        <Heart className="h-3.5 w-3.5" fill={favoriteIds.has(wp.id) ? "currentColor" : "none"} />
+      <button onClick={e => { e.stopPropagation(); toggleFavorite(wp.id); }} className="flex h-7 w-7 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-md hover:bg-white/30">
+        <Heart className={cn("h-3.5 w-3.5", favoriteIds.has(wp.id) && "fill-red-500 text-red-500")} />
       </button>
-      <button
+      <DownloadCircleButton
+        wallpaperId={wp.id}
+        active={downloadingIds.has(wp.id)}
         onClick={e => handleDownload(wp, e)}
-        disabled={downloadingIds.has(wp.id)}
-        className={cn(
-          "flex h-7 w-7 items-center justify-center rounded-full text-white backdrop-blur-md transition-all",
-          downloadingIds.has(wp.id)
-            ? "cursor-wait border border-cyan-200/80 bg-cyan-400/20 shadow-[0_0_16px_rgba(34,211,238,0.9),inset_0_0_10px_rgba(255,255,255,0.2)]"
-            : "bg-white/20"
-        )}
-      >
-        {downloadingIds.has(wp.id) ? <Loader2 className="h-3.5 w-3.5 animate-spin text-cyan-100 drop-shadow-[0_0_8px_rgba(103,232,249,1)]" /> : <Download className="h-3.5 w-3.5" />}
-      </button>
+        size={28}
+        iconSize="h-3.5 w-3.5"
+        title={downloadingIds.has(wp.id) ? "Downloading..." : "Download"}
+      />
       <button onClick={e => handleSetWallpaper(wp, e)} className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-500/90 text-white backdrop-blur-md">
         <Monitor className="h-3.5 w-3.5" />
       </button>
@@ -236,21 +233,17 @@ export function CategoryDialog({ category, onClose }: CategoryDialogProps) {
                       <img src={wp.thumbnail_url_medium ?? wp.image_url} alt={wp.title} className="w-full object-cover" loading="lazy" />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
                       <div className="absolute right-2 top-2 flex gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
-                        <button onClick={e => { e.stopPropagation(); toggleFavorite(wp.id); }} className={cn("flex h-7 w-7 items-center justify-center rounded-full backdrop-blur-md", favoriteIds.has(wp.id) ? "bg-red-500/90 text-white" : "bg-white/20 text-white")}>
-                          <Heart className="h-3.5 w-3.5" fill={favoriteIds.has(wp.id) ? "currentColor" : "none"} />
+                        <button onClick={e => { e.stopPropagation(); toggleFavorite(wp.id); }} className="flex h-7 w-7 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-md hover:bg-white/30">
+                          <Heart className={cn("h-3.5 w-3.5", favoriteIds.has(wp.id) && "fill-red-500 text-red-500")} />
                         </button>
-                        <button
+                        <DownloadCircleButton
+                          wallpaperId={wp.id}
+                          active={downloadingIds.has(wp.id)}
                           onClick={e => handleDownload(wp, e)}
-                          disabled={downloadingIds.has(wp.id)}
-                          className={cn(
-                            "flex h-7 w-7 items-center justify-center rounded-full text-white backdrop-blur-md transition-all",
-                            downloadingIds.has(wp.id)
-                              ? "cursor-wait border border-cyan-200/80 bg-cyan-400/20 shadow-[0_0_16px_rgba(34,211,238,0.9),inset_0_0_10px_rgba(255,255,255,0.2)]"
-                              : "bg-white/20"
-                          )}
-                        >
-                          {downloadingIds.has(wp.id) ? <Loader2 className="h-3.5 w-3.5 animate-spin text-cyan-100 drop-shadow-[0_0_8px_rgba(103,232,249,1)]" /> : <Download className="h-3.5 w-3.5" />}
-                        </button>
+                          size={28}
+                          iconSize="h-3.5 w-3.5"
+                          title={downloadingIds.has(wp.id) ? "Downloading..." : "Download"}
+                        />
                         <button onClick={e => handleSetWallpaper(wp, e)} className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-500/90 text-white backdrop-blur-md">
                           <Monitor className="h-3.5 w-3.5" />
                         </button>

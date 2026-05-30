@@ -1,7 +1,8 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { motion } from "motion/react";
 import { invoke } from "@tauri-apps/api/core";
-import { Search, X, SlidersHorizontal, ChevronLeft, ChevronRight, Heart, Download, Monitor, Loader2 } from "lucide-react";
+import { Search, X, SlidersHorizontal, ChevronLeft, ChevronRight, Heart, Monitor } from "lucide-react";
+import { DownloadCircleButton } from "@/components/wallpaper/DownloadCircleButton";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -95,7 +96,7 @@ export function Dashboard() {
     if (downloadingIds.has(wallpaper.id)) return;
     setDownloadingIds((ids) => new Set(ids).add(wallpaper.id));
     try {
-      await invoke<string>("download_wallpaper", { url: wallpaper.image_url, title: wallpaper.title });
+      await invoke<string>("download_wallpaper", { wallpaperId: wallpaper.id, url: wallpaper.image_url, title: wallpaper.title });
       addToast(`Downloaded to Downloads/Walpaper-House-2026: ${wallpaper.title}`, "success");
     } catch (err) {
       console.error("Failed to download wallpaper:", err);
@@ -195,24 +196,16 @@ export function Dashboard() {
                 <p className="absolute bottom-2 left-3 text-sm font-medium text-white">{wp.title}</p>
                 {/* Action buttons on hover */}
                 <div className="absolute right-2 top-2 flex gap-1.5 opacity-0 transition-opacity group-hover/card:opacity-100">
-                  <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={(e) => { e.stopPropagation(); handleFavorite(wp); }} title={isFavorited(wp.id) ? "Remove from Favorites" : "Add to Favorites"} className={cn("flex h-9 w-9 items-center justify-center rounded-full backdrop-blur-md", isFavorited(wp.id) ? "bg-red-500/90 text-white" : "bg-white/20 text-white hover:bg-white/30")}>
-                    <Heart className={cn("h-4 w-4", isFavorited(wp.id) && "fill-white")} />
+                  <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={(e) => { e.stopPropagation(); handleFavorite(wp); }} title={isFavorited(wp.id) ? "Remove from Favorites" : "Add to Favorites"} className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-md hover:bg-white/30">
+                    <Heart className={cn("h-4 w-4", isFavorited(wp.id) && "fill-red-500 text-red-500")} />
                   </motion.button>
-                  <motion.button
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
+                  <DownloadCircleButton
+                    wallpaperId={wp.id}
+                    active={downloadingIds.has(wp.id)}
                     onClick={(e) => { e.stopPropagation(); handleDownload(wp); }}
-                    disabled={downloadingIds.has(wp.id)}
-                    className={cn(
-                      "flex h-9 w-9 items-center justify-center rounded-full text-white backdrop-blur-md transition-all",
-                      downloadingIds.has(wp.id)
-                        ? "cursor-wait border border-cyan-200/80 bg-cyan-400/20 shadow-[0_0_18px_rgba(34,211,238,0.95),inset_0_0_12px_rgba(255,255,255,0.22)]"
-                        : "bg-white/20 hover:bg-white/30"
-                    )}
+                    size={36}
                     title={downloadingIds.has(wp.id) ? "Downloading..." : "Download"}
-                  >
-                    {downloadingIds.has(wp.id) ? <Loader2 className="h-4 w-4 animate-spin text-cyan-100 drop-shadow-[0_0_8px_rgba(103,232,249,1)]" /> : <Download className="h-4 w-4" />}
-                  </motion.button>
+                  />
                   <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={(e) => { e.stopPropagation(); handleSetWallpaper(wp); }} className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-500/90 text-white backdrop-blur-md hover:bg-blue-600/90" title="Set as Wallpaper">
                     <Monitor className="h-4 w-4" />
                   </motion.button>

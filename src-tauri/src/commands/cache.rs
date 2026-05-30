@@ -1,7 +1,9 @@
 use crate::error::Error;
+use serde::Serialize;
 use std::fs;
+use std::io::Write;
 use std::path::PathBuf;
-use tauri::command;
+use tauri::{command, AppHandle, Emitter};
 
 fn cache_dir() -> Result<PathBuf, Error> {
     let data_dir = dirs::data_dir().ok_or_else(|| {
@@ -85,6 +87,26 @@ fn unique_destination(dir: &PathBuf, stem: &str, ext: &str) -> PathBuf {
         }
     }
     dest
+}
+
+#[derive(Clone, Serialize)]
+struct DownloadProgress {
+    wallpaper_id: i64,
+    progress: u8,
+    downloaded: u64,
+    total: Option<u64>,
+}
+
+fn emit_download_progress(app: &AppHandle, wallpaper_id: i64, progress: u8, downloaded: u64, total: Option<u64>) {
+    let _ = app.emit(
+        "wallpaper-download-progress",
+        DownloadProgress {
+            wallpaper_id,
+            progress: progress.min(100),
+            downloaded,
+            total,
+        },
+    );
 }
 
 /// Save binary data to the local cache.
@@ -184,13 +206,20 @@ pub async fn copy_to_downloads(source_path: String) -> Result<String, Error> {
 
 /// Download an image from URL and save it to Downloads/Walpaper-House-2026.
 #[command]
-pub async fn download_wallpaper(url: String, title: String) -> Result<String, Error> {
+pub async fn download_wallpaper(
+    app: AppHandle,
+    wallpaper_id: i64,
+    url: String,
+    title: String,
+) -> Result<String, Error> {
     let downloads_dir = wallpaper_house_downloads_dir()?;
     let ext = extension_from_url(&url);
     let stem = sanitize_file_stem(&title);
     let dest = unique_destination(&downloads_dir, &stem, ext);
 
-    let response = reqwest::get(&url)
+    emit_download_progress(&app, wallpaper_id, 1, 0, None);
+
+    let mut response = reqwest::get(&url)
         .await
         .map_err(|e| Error::CommandFailed(format!("Download failed: {}", e)))?;
 
@@ -201,12 +230,25 @@ pub async fn download_wallpaper(url: String, title: String) -> Result<String, Er
         )));
     }
 
-    let bytes = response
-        .bytes()
-        .await
-        .map_err(|e| Error::CommandFailed(format!("Failed to read response: {}", e)))?;
+    let total = response.content_length();
+    let mut downloaded = 0u64;
+    let mut file = fs::File::create(&dest)?;
 
-    fs::write(&dest, &bytes)?;
+    while let Some(chunk) = response
+        .chunk()
+        .await
+        .map_err(|e| Error::CommandFailed(format!("Failed to read response: {}", e)))?
+    {
+        file.write_all(&chunk)?;
+        downloaded += chunk.len() as u64;
+        let progress = total
+            .map(|size| ((downloaded as f64 / size.max(1) as f64) * 100.0).round() as u8)
+            .unwrap_or(50);
+        emit_download_progress(&app, wallpaper_id, progress.min(99), downloaded, total);
+    }
+
+    file.flush()?;
+    emit_download_progress(&app, wallpaper_id, 100, downloaded, total);
     Ok(dest.to_string_lossy().into_owned())
 }
 
