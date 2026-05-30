@@ -1,21 +1,52 @@
-import { motion } from "motion/react";
+import { useState, useCallback } from "react";
+import { motion, AnimatePresence } from "motion/react";
+import { invoke } from "@tauri-apps/api/core";
 import { fadeInUp, staggerContainer } from "@/lib/motion";
 import { Grid3X3, TreePine, Sparkles, Minus, Moon, Palette, Building2, Rocket, Bird } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCategories } from "@/hooks/useWallpapers";
-import { useAppStore } from "@/stores/appStore";
+import { useFavoritesStore } from "@/stores/favoritesStore";
+import { CategoryDialog } from "@/components/categories/CategoryDialog";
+import type { Category, Wallpaper } from "@/types/database";
 
 const ICON_MAP: Record<string, React.ElementType> = { TreePine, Sparkles, Minus, Moon, Palette, Building2, Rocket, Bird };
 
 export function Categories() {
   const { data: categories = [], isLoading } = useCategories();
-  const { setSelectedCategoryId, setCurrentView } = useAppStore();
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+  const [settingWallpaper, setSettingWallpaper] = useState(false);
+  const favoriteIds = useFavoritesStore((s) => s.favoriteIds);
+  const toggleFavorite = useFavoritesStore((s) => s.toggleFavorite);
 
-  const handleCategoryClick = (catId: number) => {
-    setSelectedCategoryId(catId);
-    setCurrentView("dashboard");
+  const handleCategoryClick = (cat: Category) => {
+    setSelectedCategory(cat);
   };
+
+  const handleSetWallpaper = useCallback(async (wallpaper: Wallpaper) => {
+    if (settingWallpaper) return;
+    setSettingWallpaper(true);
+    try {
+      const cachePath = await invoke<string>("download_and_cache", { url: wallpaper.image_url });
+      await invoke("set_wallpaper", { path: cachePath });
+    } catch (err) {
+      console.error("Failed to set wallpaper:", err);
+    } finally {
+      setSettingWallpaper(false);
+    }
+  }, [settingWallpaper]);
+
+  const handleFavorite = useCallback((wallpaper: Wallpaper) => {
+    toggleFavorite(wallpaper.id);
+  }, [toggleFavorite]);
+
+  const handleDownload = useCallback(async (wallpaper: Wallpaper) => {
+    try {
+      await invoke<string>("download_and_cache", { url: wallpaper.image_url });
+    } catch (err) {
+      console.error("Failed to download wallpaper:", err);
+    }
+  }, []);
 
   return (
     <motion.div variants={staggerContainer(0.06)} initial="hidden" animate="visible" className="flex h-full flex-col gap-6 p-6">
@@ -33,7 +64,7 @@ export function Categories() {
           {categories.map((cat) => {
             const Icon = ICON_MAP[cat.icon || ""] || Grid3X3;
             return (
-              <motion.button key={cat.id} variants={fadeInUp} whileHover={{ scale: 1.03, y: -4 }} whileTap={{ scale: 0.97 }} onClick={() => handleCategoryClick(cat.id)} className="group flex flex-col items-start gap-3 rounded-xl border border-border bg-card p-5 text-left transition-colors hover:border-accent">
+              <motion.button key={cat.id} variants={fadeInUp} whileHover={{ scale: 1.03, y: -4 }} whileTap={{ scale: 0.97 }} onClick={() => handleCategoryClick(cat)} className="group flex flex-col items-start gap-3 rounded-xl border border-border bg-card p-5 text-left transition-colors hover:border-accent">
                 <div className="rounded-lg p-2.5" style={{ backgroundColor: `${cat.color}15` }}><Icon className="h-6 w-6" style={{ color: cat.color || "#71717a" }} /></div>
                 <div>
                   <h3 className="font-medium">{cat.name}</h3>
@@ -45,6 +76,20 @@ export function Categories() {
           })}
         </motion.div>
       )}
+
+      <AnimatePresence>
+        {selectedCategory && (
+          <CategoryDialog
+            key={selectedCategory.id}
+            category={selectedCategory}
+            onClose={() => setSelectedCategory(null)}
+            onFavorite={handleFavorite}
+            onDownload={handleDownload}
+            onSetWallpaper={handleSetWallpaper}
+            favorites={favoriteIds}
+          />
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
