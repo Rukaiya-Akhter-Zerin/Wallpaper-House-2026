@@ -62,50 +62,40 @@ pub async fn get_current_wallpaper() -> Result<String, Error> {
 
 #[cfg(target_os = "macos")]
 fn set_wallpaper_macos(path: &str) -> Result<(), Error> {
-    use cocoa::base::{id, nil};
-    use cocoa::foundation::NSString;
-    use objc::class;
-    use objc::msg_send;
-    use objc::sel;
-    use objc::sel_impl;
+    use objc2_app_kit::NSWorkspace;
+    use objc2_foundation::NSURL;
 
     unsafe {
-        let workspace_class = class!("NSWorkspace");
-        let url_class = class!("NSURL");
-        let workspace: id = msg_send![workspace_class, sharedWorkspace];
-        let path_str = format!("file://{}", path);
-        let ns_path = NSString::alloc(nil).init_str(&path_str);
-        let url: id = msg_send![url_class, URLWithString: ns_path];
-        let _: id = msg_send![workspace, setDesktopImageURL:url forScreen:nil options:nil error:nil];
+        let workspace = NSWorkspace::sharedWorkspace();
+        let ns_path = objc2_foundation::NSString::from_str(path);
+        let url = NSURL::fileURLWithPath(&ns_path);
+        let mtm = objc2_foundation::MainThreadMarker::new_unchecked();
+        let screen = objc2_app_kit::NSScreen::mainScreen(mtm);
+        let options = objc2_foundation::NSDictionary::new();
+        if let Some(screen) = screen {
+            workspace
+                .setDesktopImageURL_forScreen_options_error(&url, &screen, &options)
+                .map_err(|e| Error::CommandFailed(e.to_string()))?;
+        }
     }
     Ok(())
 }
 
 #[cfg(target_os = "macos")]
 fn get_current_wallpaper_macos() -> Result<String, Error> {
-    use cocoa::base::{id, nil};
-    use objc::class;
-    use objc::msg_send;
-    use objc::sel;
-    use objc::sel_impl;
+    use objc2_app_kit::NSWorkspace;
+    use objc2_foundation::MainThreadMarker;
 
     unsafe {
-        let workspace_class = class!("NSWorkspace");
-        let screen_class = class!("NSScreen");
-        let workspace: id = msg_send![workspace_class, sharedWorkspace];
-        let screen: id = msg_send![screen_class, mainScreen];
-        let url: id = msg_send![workspace, desktopImageURLForScreen:screen];
-        if url == nil {
-            return Err(Error::WallpaperNotFound);
-        }
-        let path_ns: id = msg_send![url, path];
-        let cstr: *const i8 = msg_send![path_ns, UTF8String];
-        if cstr.is_null() {
-            return Err(Error::WallpaperNotFound);
-        }
-        Ok(std::ffi::CStr::from_ptr(cstr)
-            .to_string_lossy()
-            .into_owned())
+        let mtm = MainThreadMarker::new_unchecked();
+        let workspace = NSWorkspace::sharedWorkspace();
+        let screen = objc2_app_kit::NSScreen::mainScreen(mtm)
+            .ok_or(Error::WallpaperNotFound)?;
+        let url = workspace
+            .desktopImageURLForScreen(&screen)
+            .ok_or(Error::WallpaperNotFound)?;
+        let path = url.path().ok_or(Error::WallpaperNotFound)?;
+        Ok(path.to_string())
     }
 }
 

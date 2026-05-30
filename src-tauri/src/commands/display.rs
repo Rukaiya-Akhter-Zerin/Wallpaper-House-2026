@@ -73,37 +73,27 @@ pub async fn set_wallpaper_for_display(path: String, display_id: u32) -> Result<
 
 #[cfg(target_os = "macos")]
 fn get_displays_macos() -> Result<Vec<Display>, Error> {
-    use cocoa::base::{id, nil};
-    use objc::class;
-    use objc::msg_send;
-    use objc::sel;
-    use objc::sel_impl;
+    use objc2_app_kit::NSScreen;
+    use objc2_foundation::MainThreadMarker;
 
     let mut displays = Vec::new();
 
     unsafe {
-        let screen_class = class!("NSScreen");
-        let screens: id = msg_send![screen_class, screens];
-        let count: usize = msg_send![screens, count];
+        let mtm = MainThreadMarker::new_unchecked();
+        let screens = NSScreen::screens(mtm);
+        let main_screen = NSScreen::mainScreen(mtm);
+        let main_frame = main_screen.as_ref().map(|s| s.frame());
 
-        for i in 0..count {
-            let screen: id = msg_send![screens, objectAtIndex: i];
-            let frame: cocoa::foundation::NSRect = msg_send![screen, frame];
-            let main_screen: id = msg_send![screen_class, mainScreen];
-            let main_frame: cocoa::foundation::NSRect = msg_send![main_screen, frame];
-            let is_primary = frame.origin.x == main_frame.origin.x
-                && frame.origin.y == main_frame.origin.y;
+        for (i, screen) in screens.iter().enumerate() {
+            let frame = screen.frame();
+            let is_primary = main_frame
+                .as_ref()
+                .map(|mf| frame.origin.x == mf.origin.x && frame.origin.y == mf.origin.y)
+                .unwrap_or(i == 0);
 
-            // Get display name from localized name
-            let localized_name: id = msg_send![screen, localizedName];
-            let name_cstr: *const i8 = msg_send![localized_name, UTF8String];
-            let name = if name_cstr.is_null() {
-                format!("Display {}", i)
-            } else {
-                std::ffi::CStr::from_ptr(name_cstr)
-                    .to_string_lossy()
-                    .into_owned()
-            };
+            let name = screen
+                .localizedName()
+                .to_string();
 
             displays.push(Display {
                 id: i as u32,
@@ -126,30 +116,26 @@ fn get_displays_macos() -> Result<Vec<Display>, Error> {
 
 #[cfg(target_os = "macos")]
 fn set_wallpaper_for_display_macos(path: &str, display_id: u32) -> Result<(), Error> {
-    use cocoa::base::{id, nil};
-    use cocoa::foundation::NSString;
-    use objc::class;
-    use objc::msg_send;
-    use objc::sel;
-    use objc::sel_impl;
+    use objc2_app_kit::{NSScreen, NSWorkspace};
+    use objc2_foundation::{MainThreadMarker, NSDictionary, NSString, NSURL};
 
     unsafe {
-        let screen_class = class!("NSScreen");
-        let workspace_class = class!("NSWorkspace");
-        let url_class = class!("NSURL");
-        let screens: id = msg_send![screen_class, screens];
-        let count: usize = msg_send![screens, count];
+        let mtm = MainThreadMarker::new_unchecked();
+        let screens = NSScreen::screens(mtm);
 
-        if display_id as usize >= count {
+        if (display_id as usize) >= screens.len() {
             return Err(Error::DisplayNotFound(display_id));
         }
+        let screen = screens.objectAtIndex(display_id as usize);
 
-        let screen: id = msg_send![screens, objectAtIndex: display_id as usize];
-        let workspace: id = msg_send![workspace_class, sharedWorkspace];
-        let path_str = format!("file://{}", path);
-        let ns_path: id = NSString::alloc(nil).init_str(&path_str);
-        let url: id = msg_send![url_class, URLWithString: ns_path];
-        let _: id = msg_send![workspace, setDesktopImageURL:url forScreen:screen options:nil error:nil];
+        let workspace = NSWorkspace::sharedWorkspace();
+        let ns_path = NSString::from_str(path);
+        let url = NSURL::fileURLWithPath(&ns_path);
+        let options = NSDictionary::new();
+
+        workspace
+            .setDesktopImageURL_forScreen_options_error(&url, &screen, &options)
+            .map_err(|e| Error::CommandFailed(e.to_string()))?;
     }
 
     Ok(())
