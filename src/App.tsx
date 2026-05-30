@@ -11,6 +11,7 @@ import { AnalyticsPage } from "@/pages/AnalyticsPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 import { pageTransition } from "@/lib/motion";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ToastContainer } from "@/components/ui/toast-container";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -56,6 +57,7 @@ export default function App() {
         >
           <CurrentPage />
         </AppLayout>
+        <ToastContainer />
       </TooltipProvider>
     </QueryClientProvider>
   );

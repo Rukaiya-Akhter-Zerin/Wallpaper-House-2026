@@ -12,6 +12,7 @@ import { WallpaperPreview } from "@/components/wallpaper/WallpaperPreview";
 import { useWallpapers, useFeaturedWallpapers, useCategories, type WallpaperFilters } from "@/hooks/useWallpapers";
 import { useFavoritesStore } from "@/stores/favoritesStore";
 import { useAppStore } from "@/stores/appStore";
+import { useToastStore } from "@/stores/toastStore";
 import type { Wallpaper } from "@/types/database";
 
 const RESOLUTIONS = ["4K", "2K", "1080p", "Ultrawide"];
@@ -37,6 +38,7 @@ export function Dashboard() {
   const categoryId = selectedCategoryId;
   const setCategoryId = useCallback((id: number | null) => setSelectedCategoryId(id), [setSelectedCategoryId]);
 
+  const addToast = useToastStore((s) => s.addToast);
   const favoriteIds = useFavoritesStore((s) => s.favoriteIds);
   const toggleFavorite = useFavoritesStore((s) => s.toggleFavorite);
   const isFavorited = useCallback((id: number) => favoriteIds.has(id), [favoriteIds]);
@@ -76,25 +78,26 @@ export function Dashboard() {
     if (settingWallpaper) return;
     setSettingWallpaper(true);
     try {
-      // Download + cache + set all in Rust (avoids slow IPC byte transfer)
       const cachePath = await invoke<string>("download_and_cache", { url: wallpaper.image_url });
       await invoke("set_wallpaper", { path: cachePath });
-      console.log("Wallpaper set successfully:", wallpaper.title);
+      addToast("Wallpaper set successfully!", "success");
     } catch (err) {
       console.error("Failed to set wallpaper:", err);
+      addToast("Failed to set wallpaper", "error");
     } finally {
       setSettingWallpaper(false);
     }
-  }, [settingWallpaper]);
+  }, [settingWallpaper, addToast]);
 
   const handleDownload = useCallback(async (wallpaper: Wallpaper) => {
     try {
-      const cachePath = await invoke<string>("download_and_cache", { url: wallpaper.image_url });
-      console.log("Downloaded to:", cachePath);
+      await invoke<string>("download_and_cache", { url: wallpaper.image_url });
+      addToast(`Downloaded: ${wallpaper.title}`, "success");
     } catch (err) {
       console.error("Failed to download wallpaper:", err);
+      addToast("Download failed", "error");
     }
-  }, []);
+  }, [addToast]);
 
   const handleFavorite = useCallback((wallpaper: Wallpaper) => {
     toggleFavorite(wallpaper.id);
