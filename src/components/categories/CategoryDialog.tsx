@@ -24,6 +24,7 @@ export function CategoryDialog({ category, onClose, onPreview }: CategoryDialogP
   const addToast = useToastStore(s => s.addToast);
 
   const [previewWallpaper, setPreviewWallpaper] = useState<Wallpaper | null>(null);
+  const [previewOrigin, setPreviewOrigin] = useState<DOMRect | null>(null);
 
   /* ── Infinite carousel ── */
   const carouselItems = wallpapers.slice(0, 5);
@@ -126,7 +127,7 @@ export function CategoryDialog({ category, onClose, onPreview }: CategoryDialogP
                           transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
                           className="absolute cursor-pointer overflow-hidden rounded-xl shadow-2xl"
                           style={{ width: "320px", height: "280px" }}
-                          onClick={() => setPreviewWallpaper(wp)}
+                          onClick={(e) => { const rect = (e.currentTarget as HTMLElement).getBoundingClientRect(); setPreviewWallpaper(wp); setPreviewOrigin(rect); }}
                         >
                           <img src={wp.thumbnail_url_large ?? wp.image_url} alt={wp.title} className="h-full w-full object-cover" />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
@@ -154,7 +155,7 @@ export function CategoryDialog({ category, onClose, onPreview }: CategoryDialogP
                 </div>
                 <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
                   {popularItems.map(wp => (
-                    <div key={wp.id} className="group relative h-36 w-64 flex-shrink-0 cursor-pointer overflow-hidden rounded-xl" onClick={() => setPreviewWallpaper(wp)}>
+                    <div key={wp.id} className="group relative h-36 w-64 flex-shrink-0 cursor-pointer overflow-hidden rounded-xl" onClick={(e) => { const rect = (e.currentTarget as HTMLElement).getBoundingClientRect(); setPreviewWallpaper(wp); setPreviewOrigin(rect); }}>
                       <img src={wp.thumbnail_url_medium ?? wp.image_url} alt={wp.title} className="h-full w-full object-cover" loading="lazy" />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
                       <ActionButtons wp={wp} />
@@ -173,7 +174,7 @@ export function CategoryDialog({ category, onClose, onPreview }: CategoryDialogP
                 </div>
                 <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
                   {recentItems.map(wp => (
-                    <div key={wp.id} className="group relative h-52 w-36 flex-shrink-0 cursor-pointer overflow-hidden rounded-xl" onClick={() => setPreviewWallpaper(wp)}>
+                    <div key={wp.id} className="group relative h-52 w-36 flex-shrink-0 cursor-pointer overflow-hidden rounded-xl" onClick={(e) => { const rect = (e.currentTarget as HTMLElement).getBoundingClientRect(); setPreviewWallpaper(wp); setPreviewOrigin(rect); }}>
                       <img src={wp.thumbnail_url_medium ?? wp.image_url} alt={wp.title} className="h-full w-full object-cover" loading="lazy" />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
                       <ActionButtons wp={wp} vertical />
@@ -192,7 +193,7 @@ export function CategoryDialog({ category, onClose, onPreview }: CategoryDialogP
                 </div>
                 <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
                   {popularItems.slice(0, 6).map(wp => (
-                    <div key={wp.id} className="group relative h-40 w-40 flex-shrink-0 cursor-pointer overflow-hidden rounded-xl border-2 border-purple-500/20" onClick={() => setPreviewWallpaper(wp)}>
+                    <div key={wp.id} className="group relative h-40 w-40 flex-shrink-0 cursor-pointer overflow-hidden rounded-xl border-2 border-purple-500/20" onClick={(e) => { const rect = (e.currentTarget as HTMLElement).getBoundingClientRect(); setPreviewWallpaper(wp); setPreviewOrigin(rect); }}>
                       <img src={wp.thumbnail_url_medium ?? wp.image_url} alt={wp.title} className="h-full w-full object-cover" loading="lazy" />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
                       <div className="absolute bottom-0 left-0 right-0 p-2">
@@ -211,7 +212,7 @@ export function CategoryDialog({ category, onClose, onPreview }: CategoryDialogP
                 <h3 className="mb-4 font-semibold">All {category.name} Wallpapers</h3>
                 <div className="columns-2 gap-2 md:columns-3 lg:columns-4">
                   {wallpapers.map((wp, i) => (
-                    <div key={wp.id} className="group relative mb-2 break-inside-avoid cursor-pointer overflow-hidden rounded-xl" onClick={() => setPreviewWallpaper(wp)}>
+                    <div key={wp.id} className="group relative mb-2 break-inside-avoid cursor-pointer overflow-hidden rounded-xl" onClick={(e) => { const rect = (e.currentTarget as HTMLElement).getBoundingClientRect(); setPreviewWallpaper(wp); setPreviewOrigin(rect); }}>
                       <img src={wp.thumbnail_url_medium ?? wp.image_url} alt={wp.title} className="w-full object-cover" loading="lazy" />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
                       <div className="absolute right-2 top-2 flex gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
@@ -239,7 +240,8 @@ export function CategoryDialog({ category, onClose, onPreview }: CategoryDialogP
     {/* Detail preview modal — same as gallery */}
     <WallpaperPreview
       wallpaper={previewWallpaper}
-      onClose={() => setPreviewWallpaper(null)}
+      onClose={() => { setPreviewWallpaper(null); setPreviewOrigin(null); }}
+      originRect={previewOrigin}
       isFavorited={previewWallpaper ? favoriteIds.has(previewWallpaper.id) : false}
       onFavorite={(wp) => toggleFavorite(wp.id)}
       onDownload={(wp) => handleDownload(wp)}

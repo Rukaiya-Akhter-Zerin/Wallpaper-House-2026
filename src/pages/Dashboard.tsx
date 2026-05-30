@@ -31,6 +31,7 @@ export function Dashboard() {
   const [sort, setSort] = useState<WallpaperFilters["sort"]>("created_at");
   const [showFilters, setShowFilters] = useState(false);
   const [previewWallpaper, setPreviewWallpaper] = useState<Wallpaper | null>(null);
+  const [previewOrigin, setPreviewOrigin] = useState<DOMRect | null>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // Use real stores instead of local state
@@ -177,7 +178,7 @@ export function Dashboard() {
             {tripledFeatured.map((wp, idx) => (
               <div key={`${wp.id}-${idx}`} className="group/card" style={{ overflow: "visible", position: "relative", willChange: "transform", zIndex: 1 }}>
                 <div
-                  onClick={() => setPreviewWallpaper(wp)}
+                  onClick={(e) => { const rect = (e.currentTarget as HTMLElement).getBoundingClientRect(); setPreviewWallpaper(wp); setPreviewOrigin(rect); }}
                   className="relative h-44 w-80 flex-shrink-0 cursor-pointer overflow-hidden rounded-xl"
                 >
                 <img src={wp.thumbnail_url_medium ?? wp.image_url} alt={wp.title} className="h-full w-full object-cover" loading="lazy" />
@@ -245,11 +246,11 @@ export function Dashboard() {
 
       {/* Masonry grid */}
       <motion.div variants={fadeInUp} className="flex-1">
-        <WallpaperGrid wallpapers={wallpapers} isLoading={isLoading} isFetchingNextPage={isFetchingNextPage} hasNextPage={hasNextPage} fetchNextPage={fetchNextPage} onPreview={setPreviewWallpaper} onFavorite={handleFavorite} onDownload={handleDownload} onSetWallpaper={handleSetWallpaper} favorites={favoriteIds} />
+        <WallpaperGrid wallpapers={wallpapers} isLoading={isLoading} isFetchingNextPage={isFetchingNextPage} hasNextPage={hasNextPage} fetchNextPage={fetchNextPage} onPreview={(wp, rect) => { setPreviewWallpaper(wp); setPreviewOrigin(rect); }} onFavorite={handleFavorite} onDownload={handleDownload} onSetWallpaper={handleSetWallpaper} favorites={favoriteIds} />
       </motion.div>
 
       {/* Preview modal with all actions connected */}
-      <WallpaperPreview wallpaper={previewWallpaper} onClose={() => setPreviewWallpaper(null)} isFavorited={previewWallpaper ? isFavorited(previewWallpaper.id) : false} onFavorite={handleFavorite} onDownload={handleDownload} onSetWallpaper={handleSetWallpaper} />
+      <WallpaperPreview wallpaper={previewWallpaper} onClose={() => { setPreviewWallpaper(null); setPreviewOrigin(null); }} originRect={previewOrigin} isFavorited={previewWallpaper ? isFavorited(previewWallpaper.id) : false} onFavorite={handleFavorite} onDownload={handleDownload} onSetWallpaper={handleSetWallpaper} />
     </motion.div>
   );
 }

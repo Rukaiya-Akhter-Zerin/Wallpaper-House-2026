@@ -8,7 +8,7 @@ import type { Wallpaper } from "@/types/database";
 
 interface WallpaperCardProps {
   wallpaper: Wallpaper;
-  onPreview: (wallpaper: Wallpaper) => void;
+  onPreview: (wallpaper: Wallpaper, originRect: DOMRect) => void;
   onFavorite?: (wallpaper: Wallpaper) => void;
   onDownload?: (wallpaper: Wallpaper) => void;
   onSetWallpaper?: (wallpaper: Wallpaper) => void;
@@ -72,7 +72,10 @@ export function WallpaperCard({
       }}
     >
       <motion.div
-        onClick={() => onPreview(wallpaper)}
+        onClick={(e) => {
+          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+          onPreview(wallpaper, rect);
+        }}
         onHoverStart={() => {
           hoverTimerRef.current = setTimeout(() => setHovered(true), 300);
         }}

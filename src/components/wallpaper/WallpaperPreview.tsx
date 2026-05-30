@@ -16,11 +16,30 @@ interface WallpaperPreviewProps {
   isFavorited?: boolean;
   onNext?: () => void;
   onPrev?: () => void;
+  originRect?: DOMRect | null;
 }
 
-export function WallpaperPreview({ wallpaper, onClose, onFavorite, onDownload, onSetWallpaper, isFavorited = false, onNext, onPrev }: WallpaperPreviewProps) {
+export function WallpaperPreview({ wallpaper, onClose, onFavorite, onDownload, onSetWallpaper, isFavorited = false, onNext, onPrev, originRect }: WallpaperPreviewProps) {
   const [scale, setScale] = useState(1);
   const imgRef = useRef<HTMLImageElement>(null);
+
+  // Calculate animation origin from card rect
+  const getOriginAnimation = () => {
+    if (!originRect) return {};
+    const dialogW = Math.min(window.innerWidth * 0.9, 1280);
+    const dialogH = window.innerHeight * 0.9;
+    const dialogCx = window.innerWidth / 2;
+    const dialogCy = window.innerHeight / 2;
+    const cardCx = originRect.left + originRect.width / 2;
+    const cardCy = originRect.top + originRect.height / 2;
+    const offsetX = cardCx - dialogCx;
+    const offsetY = cardCy - dialogCy;
+    const scaleX = originRect.width / dialogW;
+    const scaleY = originRect.height / dialogH;
+    return { x: offsetX, y: offsetY, scaleX, scaleY };
+  };
+
+  const origin = getOriginAnimation();
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === "Escape") onClose();
@@ -58,13 +77,13 @@ export function WallpaperPreview({ wallpaper, onClose, onFavorite, onDownload, o
   return (
     <AnimatePresence>
       {wallpaper && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[60] flex items-center justify-center" onClick={onClose}>
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-xl" />
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.6, ease: "easeOut" }} className="fixed inset-0 z-[60] flex items-center justify-center" onClick={onClose}>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.8, delay: 0.1 }} className="absolute inset-0 bg-black/80 backdrop-blur-xl" />
           <motion.div
-            initial={{ scale: 0.6, opacity: 0, y: 80, filter: "blur(20px)" }}
-            animate={{ scale: 1, opacity: 1, y: 0, filter: "blur(0px)" }}
-            exit={{ scale: 0.7, opacity: 0, y: 40, filter: "blur(12px)" }}
-            transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
+            initial={originRect ? { x: origin.x, y: origin.y, scaleX: origin.scaleX, scaleY: origin.scaleY, opacity: 0, borderRadius: "12px" } : { scale: 0.6, opacity: 0, y: 80 }}
+            animate={{ x: 0, y: 0, scaleX: 1, scaleY: 1, opacity: 1, borderRadius: "16px" }}
+            exit={originRect ? { x: origin.x, y: origin.y, scaleX: origin.scaleX, scaleY: origin.scaleY, opacity: 0 } : { scale: 0.7, opacity: 0, y: 40 }}
+            transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
             className="relative z-10 flex h-[90vh] w-[90vw] max-w-7xl overflow-hidden rounded-2xl bg-background/95 backdrop-blur-md border border-border shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
