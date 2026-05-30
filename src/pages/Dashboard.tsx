@@ -105,7 +105,9 @@ export function Dashboard() {
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const autoScrollRef = useRef<number>();
-  const [autoScrollPaused, setAutoScrollPaused] = useState(false);
+  const isManualScrolling = useRef(false);
+  const isHovering = useRef(false);
+  const resumeTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
   // Triple featured array for seamless infinite loop
   const tripledFeatured = useMemo(() => {
@@ -113,30 +115,35 @@ export function Dashboard() {
     return [...featured, ...featured, ...featured];
   }, [featured]);
 
+  const CARD_W = 384; // w-96
+  const GAP = 12;     // gap-3
+
   // On mount, scroll to the middle set
   useEffect(() => {
     if (scrollRef.current && featured && featured.length > 0) {
-      const cardWidth = 320 + 12; // w-80 + gap-3 (12px)
-      scrollRef.current.scrollLeft = featured.length * cardWidth;
+      scrollRef.current.scrollLeft = featured.length * (CARD_W + GAP);
     }
   }, [featured]);
 
-  // Auto-scroll animation
+  // Auto-scroll with delta-time for frame-rate independent speed
   useEffect(() => {
-    if (autoScrollPaused || !featured || featured.length === 0) return;
-
+    if (!featured || featured.length === 0) return;
     const el = scrollRef.current;
     if (!el) return;
 
-    const cardWidth = 320 + 12;
-    const middleEnd = featured.length * 2 * cardWidth;
-    const middleStart = featured.length * cardWidth;
+    const SPEED = 40; // px per second
+    const loopLength = featured.length * (CARD_W + GAP);
+    let lastTime: number | null = null;
 
-    const animate = () => {
-      el.scrollLeft += 0.5;
-      if (el.scrollLeft >= middleEnd) {
-        el.scrollLeft = middleStart;
+    const animate = (time: number) => {
+      if (lastTime !== null && !isManualScrolling.current && !isHovering.current) {
+        const dt = (time - lastTime) / 1000;
+        el.scrollLeft += SPEED * dt;
+        if (el.scrollLeft >= loopLength * 2) {
+          el.scrollLeft -= loopLength;
+        }
       }
+      lastTime = time;
       autoScrollRef.current = requestAnimationFrame(animate);
     };
 
@@ -144,12 +151,14 @@ export function Dashboard() {
     return () => {
       if (autoScrollRef.current) cancelAnimationFrame(autoScrollRef.current);
     };
-  }, [autoScrollPaused, featured]);
+  }, [featured]);
 
   const scrollFeatured = (dir: "left" | "right") => {
     if (!scrollRef.current) return;
-    const cardWidth = 320 + 12;
-    scrollRef.current.scrollBy({ left: dir === "left" ? -cardWidth : cardWidth, behavior: "smooth" });
+    isManualScrolling.current = true;
+    scrollRef.current.scrollBy({ left: dir === "left" ? -(CARD_W + GAP) : CARD_W + GAP, behavior: "smooth" });
+    if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
+    resumeTimerRef.current = setTimeout(() => { isManualScrolling.current = false; }, 600);
   };
 
   return (
@@ -159,26 +168,26 @@ export function Dashboard() {
         <motion.div variants={fadeInUp} className="relative">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-lg font-semibold tracking-tight">Featured</h2>
-            <div className="flex gap-1">
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full backdrop-blur-md bg-white/10 border border-white/20 hover:bg-white/20" onClick={() => scrollFeatured("left")}><ChevronLeft className="h-4 w-4" /></Button>
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full backdrop-blur-md bg-white/10 border border-white/20 hover:bg-white/20" onClick={() => scrollFeatured("right")}><ChevronRight className="h-4 w-4" /></Button>
+            <div className="flex gap-2">
+              <button onClick={() => scrollFeatured("left")} className="flex h-10 w-10 items-center justify-center rounded-full glass-subtle cursor-pointer transition-all hover:scale-105 hover:bg-white/20 active:scale-95"><ChevronLeft className="h-5 w-5" /></button>
+              <button onClick={() => scrollFeatured("right")} className="flex h-10 w-10 items-center justify-center rounded-full glass-subtle cursor-pointer transition-all hover:scale-105 hover:bg-white/20 active:scale-95"><ChevronRight className="h-5 w-5" /></button>
             </div>
           </div>
-          <div ref={scrollRef} className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide" style={{ scrollbarWidth: "none" }} onMouseEnter={() => setAutoScrollPaused(true)} onMouseLeave={() => setAutoScrollPaused(false)}>
+          <div ref={scrollRef} className="group flex gap-3 overflow-hidden pb-2 scrollbar-hide" onMouseEnter={() => { isHovering.current = true; }} onMouseLeave={() => { isHovering.current = false; }}>
             {tripledFeatured.map((wp, idx) => (
-              <div key={`${wp.id}-${idx}`} onClick={() => setPreviewWallpaper(wp)} className="group relative h-56 w-80 flex-shrink-0 cursor-pointer overflow-hidden rounded-xl">
-                <img src={wp.thumbnail_url_medium ?? wp.image_url} alt={wp.title} className="h-full w-full object-cover wallpaper-card-img" loading="lazy" />
+              <div key={`${wp.id}-${idx}`} onClick={() => setPreviewWallpaper(wp)} className="group/card relative h-56 w-96 flex-shrink-0 cursor-pointer overflow-hidden rounded-xl">
+                <img src={wp.thumbnail_url_medium ?? wp.image_url} alt={wp.title} className="h-full w-full object-cover transition-transform duration-[400ms] group-hover/card:scale-100 scale-[1.07]" style={{ transitionTimingFunction: "cubic-bezier(0.25, 0.46, 0.45, 0.94)" }} loading="lazy" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                 <p className="absolute bottom-2 left-3 text-sm font-medium text-white">{wp.title}</p>
                 {/* Action buttons on hover */}
                 <div className="absolute right-2 top-2 flex gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
-                  <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={(e) => { e.stopPropagation(); handleFavorite(wp); }} className={cn("flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-md", isFavorited(wp.id) ? "bg-red-500/90 text-white" : "bg-white/20 text-white hover:bg-white/30")}>
+                  <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={(e) => { e.stopPropagation(); handleFavorite(wp); }} title={isFavorited(wp.id) ? "Remove from Favorites" : "Add to Favorites"} className={cn("flex h-9 w-9 items-center justify-center rounded-full backdrop-blur-md", isFavorited(wp.id) ? "bg-red-500/90 text-white" : "bg-white/20 text-white hover:bg-white/30")}>
                     <Heart className={cn("h-4 w-4", isFavorited(wp.id) && "fill-white")} />
                   </motion.button>
-                  <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={(e) => { e.stopPropagation(); handleDownload(wp); }} className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-md hover:bg-white/30" title="Download">
+                  <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={(e) => { e.stopPropagation(); handleDownload(wp); }} className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-md hover:bg-white/30" title="Download">
                     <Download className="h-4 w-4" />
                   </motion.button>
-                  <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={(e) => { e.stopPropagation(); handleSetWallpaper(wp); }} className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-500/90 text-white backdrop-blur-md hover:bg-blue-600/90" title="Set as Wallpaper">
+                  <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={(e) => { e.stopPropagation(); handleSetWallpaper(wp); }} className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-500/90 text-white backdrop-blur-md hover:bg-blue-600/90" title="Set as Wallpaper">
                     <Monitor className="h-4 w-4" />
                   </motion.button>
                 </div>
