@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "motion/react";
-import { X, Wallpaper, Github, Heart } from "lucide-react";
+import { X, Wallpaper, Heart } from "lucide-react";
 
 interface AboutUsDialogProps {
   open: boolean;
