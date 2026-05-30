@@ -8,7 +8,6 @@ import { CollectionDetail } from "@/components/collections/CollectionDetail";
 import { CreateCollectionDialog } from "@/components/collections/CreateCollectionDialog";
 import { GalleryPickerModal } from "@/components/collections/GalleryPickerModal";
 import { Button } from "@/components/ui/button";
-import { useCollectionsStore } from "@/stores/collectionsStore";
 import type { Wallpaper } from "@/types/database";
 
 export function Collections() {
